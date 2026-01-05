@@ -1,0 +1,194 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Picture of the Day</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'pictures/favicon.ico' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DDQ4BNX83M"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DDQ4BNX83M');
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .last-updated {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .back-link i {
+            margin-right: 5px;
+        }
+        
+        ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .contact-info {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            h2 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Picture of the Day
+        </a>
+        
+        <h1>Privacy Policy</h1>
+        <p class="last-updated">Last Updated: January 5, 2026</p>
+        
+        <p>This Privacy Policy describes how Picture of the Day ("we", "our", or "us") collects, uses, and protects information when you use our browser extension and website. We are committed to protecting your privacy and ensuring transparency about our data practices.</p>
+        
+        <h2>Information We Collect</h2>
+        
+        <h3>No Personal Information</h3>
+        <p>We do not collect, store, or transmit any personal information. We do not access user identification, browsing history, email addresses, names, or any other personally identifiable information. The extension and website operate without requiring any user registration or account creation.</p>
+        
+        <h3>Local Storage Data</h3>
+        <p>The browser extension uses localStorage, which is a browser feature that stores data locally on your device. This includes your selected picture source preference (NASA APOD, Wikipedia POD, or Bing POD), user interface settings such as description visibility and dimensions overlay preferences, cached picture data for today's picture to enable faster loading and offline viewing, and cached source list information that is refreshed periodically. All of this data remains on your device and is never transmitted to our servers or any third parties.</p>
+        
+        <h3>Usage Statistics</h3>
+        <p>We use Google Analytics to collect anonymous usage statistics to help us understand how users interact with the extension and website. This includes information such as page views, feature usage, and general interaction patterns. Google Analytics collects this data anonymously and does not identify individual users. The data helps us improve the extension's functionality and user experience over time. You can learn more about Google Analytics privacy practices at <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">https://policies.google.com/privacy</a>.</p>
+        
+        <h2>How We Use Information</h2>
+        
+        <p>The extension fetches public picture data from external APIs including NASA API, Wikipedia API, and Bing API. This data is used solely for display purposes on the new tab page. The data is not stored permanently on our servers, and we do not share this data with third parties. API calls are made only when you open a new tab or interact with the extension.</p>
+        
+        <p>All user preferences and cached data are stored locally in your browser using localStorage. This data is used to remember your settings and provide a personalized experience. No personal information is collected or stored, and all data remains on your device.</p>
+        
+        <h2>Data Sharing and Third Parties</h2>
+        
+        <p>We do not sell, trade, or share any user data with third parties. We do not collect personal information that could be shared. The only external service we use is Google Analytics for anonymous usage statistics, which operates under Google's privacy policy.</p>
+        
+        <p>The extension accesses the following external services to function: our primary backend API at picture.learntosolveit.com to fetch curated picture data with AI-enhanced descriptions, NASA API as a fallback source for NASA Astronomy Picture of the Day content, and Google Tag Manager to load the Google Analytics script. All communications with these services use secure HTTPS connections.</p>
+        
+        <h2>Data Security</h2>
+        
+        <p>All API communications use HTTPS encryption to protect data in transit. No sensitive data is transmitted, as we do not collect personal information. Local storage is managed by your browser and is secure. We do not store any credentials, authentication tokens, or sensitive information.</p>
+        
+        <h2>Your Rights and Control</h2>
+        
+        <p>You have full control over your data. You can clear all stored data at any time by clearing your browser's localStorage. This will remove all preferences and cached data. You can disable or uninstall the extension at any time, which will remove all local data associated with the extension.</p>
+        
+        <p>No data collection occurs without your explicit action. The extension only fetches data when you open a new tab or interact with the extension. You are not required to provide any personal information to use the extension or website.</p>
+        
+        <h2>Children's Privacy</h2>
+        
+        <p>Our extension and website are not directed to children under the age of 13. We do not knowingly collect personal information from children. Since we do not collect personal information from anyone, this policy applies equally to all users regardless of age.</p>
+        
+        <h2>Changes to This Privacy Policy</h2>
+        
+        <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date. You are advised to review this Privacy Policy periodically for any changes.</p>
+        
+        <h2>Compliance</h2>
+        
+        <p>This extension and website comply with Chrome Web Store Developer Program Policies regarding user data privacy. We follow GDPR principles including data minimization and user control. We do not engage in cross-site tracking or fingerprinting. All data practices are transparent and clearly explained in this policy.</p>
+        
+        <h2>Contact Us</h2>
+        
+        <div class="contact-info">
+            <p>If you have any questions about this Privacy Policy, please contact us:</p>
+            <p><strong>Email:</strong> orsenthil@gmail.com</p>
+            <p><strong>Website:</strong> <a href="https://picture.learntosolveit.com">https://picture.learntosolveit.com</a></p>
+        </div>
+        
+        <p style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ecf0f1; color: #7f8c8d; font-size: 0.9em;">
+            By using Picture of the Day, you agree to the collection and use of information in accordance with this Privacy Policy.
+        </p>
+    </div>
+</body>
+</html>
+

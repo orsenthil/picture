@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Tab</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DDQ4BNX83M"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-DDQ4BNX83M');
+    </script>
+</head>
+<body>
+    <div class="background-container" id="backgroundContainer">
+        <img id="apodImage" alt="Astronomy Picture of the Day">
+    </div>
+    
+    <div class="overlay">
+        <!-- Settings Button -->
+        <button class="settings-toggle" id="settingsToggle" title="Settings">
+            <i class="fas fa-cog"></i>
+        </button>
+        
+        <!-- Settings Panel -->
+        <div class="settings-panel" id="settingsPanel">
+            <div class="settings-header">
+                <h3>Settings</h3>
+                <button class="settings-close" id="settingsClose" title="Close settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+            <div class="settings-content">
+                <!-- Primary Control: Toggle Display Description -->
+                <div class="settings-item">
+                    <label class="settings-label">
+                        <span>Display Description</span>
+                        <input type="checkbox" id="toggleDescription" class="settings-checkbox">
+                        <span class="settings-toggle-switch"></span>
+                    </label>
+                </div>
+                
+                <!-- Secondary: Change Source -->
+                <div class="settings-item">
+                    <label class="settings-label">
+                        <span>Picture Source</span>
+                    </label>
+                    <select id="sourceSelect" class="settings-select">
+                        <option value="apod">NASA APOD</option>
+                        <option value="wikipedia">Wikipedia POD</option>
+                        <option value="bing">Bing POD</option>
+                    </select>
+                    <select id="bingPictureSelect" class="bing-picture-select hidden settings-select">
+                        <option value="">Select a Bing picture...</option>
+                    </select>
+                </div>
+                
+                <!-- Toggle Random on New Tab -->
+                <div class="settings-item">
+                    <label class="settings-label">
+                        <span>Random on New Tab</span>
+                        <input type="checkbox" id="toggleRandom" class="settings-checkbox">
+                        <span class="settings-toggle-switch"></span>
+                    </label>
+                </div>
+                
+                <!-- Dimensions Display -->
+                <div class="settings-item">
+                    <label class="settings-label">
+                        <span>Show Dimensions</span>
+                        <input type="checkbox" id="toggleDimensions" class="settings-checkbox">
+                        <span class="settings-toggle-switch"></span>
+                    </label>
+                </div>
+                
+                <!-- Source Link -->
+                <div class="settings-item">
+                    <a id="sourceLink" href="#" target="_blank" class="settings-link">
+                        <span>Visit Source</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dimensions Overlay (hidden by default, shown if enabled in settings) -->
+        <div class="dimensions-overlay hidden" id="dimensionsOverlay">
+            <div class="dimension-item">
+                <span class="dimension-label">Viewport:</span>
+                <span id="viewportDimensions">-</span>
+            </div>
+            <div class="dimension-item">
+                <span class="dimension-label">Image:</span>
+                <span id="imageDimensions">-</span>
+            </div>
+            <div class="dimension-item">
+                <span class="dimension-label">Scale:</span>
+                <span id="scaleInfo">-</span>
+            </div>
+            <div class="dimension-item">
+                <span class="dimension-label">Mode:</span>
+                <span id="displayMode">-</span>
+            </div>
+        </div>
+        
+        <!-- Info Panel -->
+        <div class="info-panel" id="infoPanel">
+            <div class="info-content">
+                <h1 id="apodTitle">Loading...</h1>
+                <p id="apodDate"></p>
+                <p id="apodDescription"></p>
+                <p class="copyright" id="apodCopyright"></p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p id="loadingText">Loading today's picture...</p>
+    </div>
+    
+    <script src="newtab.js"></script>
+</body>
+</html>

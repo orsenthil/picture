@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup-old-pictures
+  namespace: pictureoftheday
+spec:
+  schedule: "0 3 * * 0"  # Run at 3 AM UTC every Sunday
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cleanup
+            image: registry.digitalocean.com/orsenthil/pictureoftheday:latest
+            command:
+            - sh
+            - -c
+            - |
+              python manage.py cleanup_old_pictures --days 90 --keep-min 10
+            env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pictureoftheday-secrets
+                  key: SECRET_KEY
+            - name: DB_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: pictureoftheday-config
+                  key: DB_ENGINE
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: pictureoftheday-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: pictureoftheday-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pictureoftheday-secrets
+                  key: DB_PASSWORD
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: pictureoftheday-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: pictureoftheday-config
+                  key: DB_PORT
+            - name: ALLOWED_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: pictureoftheday-config
+                  key: ALLOWED_HOSTS
+          restartPolicy: OnFailure
+
