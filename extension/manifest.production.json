@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Picture of the Day",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Transform your new tab daily pictures from NASA, Wikipedia, and Bing with AI enhanced information.",
   "icons": {
     "16": "icons/icon-16.png",
