@@ -10,7 +10,7 @@ const DIMENSIONS_VISIBLE_KEY = 'dimensions_overlay_visible';  // Store dimension
 const INFO_PANEL_VISIBLE_KEY = 'info_panel_visible';  // Store info panel visibility
 const RANDOM_ON_NEW_TAB_KEY = 'random_on_new_tab';  // Store random on new tab preference
 
-const BACKEND_API_URL = 'http://localhost:8000/api';
+const BACKEND_API_URL = 'https://picture.learntosolveit.com/api';
 const PICTURES_API_URL = `${BACKEND_API_URL}/pictures`;
 
 // Available sources - will be loaded dynamically from API
