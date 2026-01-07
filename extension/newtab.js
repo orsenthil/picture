@@ -10,7 +10,10 @@ const DIMENSIONS_VISIBLE_KEY = 'dimensions_overlay_visible';  // Store dimension
 const INFO_PANEL_VISIBLE_KEY = 'info_panel_visible';  // Store info panel visibility
 const RANDOM_ON_NEW_TAB_KEY = 'random_on_new_tab';  // Store random on new tab preference
 
-const BACKEND_API_URL = 'https://picture.learntosolveit.com/api';
+// API URL configuration - loaded from config.js
+// config.js is set to localhost for development
+// config.production.js is used for production builds
+const BACKEND_API_URL = CONFIG.BACKEND_API_URL;
 const PICTURES_API_URL = `${BACKEND_API_URL}/pictures`;
 
 // Available sources - will be loaded dynamically from API
@@ -49,9 +52,10 @@ const toggleRandom = document.getElementById('toggleRandom');
 const toggleDimensions = document.getElementById('toggleDimensions');
 
 // Initialize source selector - will be updated when sources are loaded
-// Temporary initialization to avoid errors
+// Temporary initialization to show loading state
 if (sourceSelect) {
-    sourceSelect.innerHTML = '<option value="apod">NASA APOD</option><option value="wikipedia">Wikipedia POD</option><option value="bing">Bing POD</option>';
+    sourceSelect.innerHTML = '<option value="">Loading sources...</option>';
+    sourceSelect.disabled = true;
 }
 
 // Initialize dimensions overlay visibility
@@ -112,11 +116,29 @@ sourceSelect.addEventListener('change', async (e) => {
     const randomEnabled = localStorage.getItem(RANDOM_ON_NEW_TAB_KEY) === 'true';
     if (randomEnabled) {
         // Revert the change - random mode should ignore manual selection
-        e.target.value = getRandomSource();
+        const randomSource = getRandomSource();
+        if (randomSource) {
+            e.target.value = randomSource;
+        }
         return;
     }
     
     const newSource = e.target.value;
+    
+    // Validate the source is still enabled
+    if (!AVAILABLE_SOURCES.includes(newSource)) {
+        // Source was disabled - refresh sources and select first available
+        await updateSourceSelector(true);
+        if (AVAILABLE_SOURCES.length > 0) {
+            e.target.value = AVAILABLE_SOURCES[0];
+            setSelectedSource(AVAILABLE_SOURCES[0]);
+        } else {
+            showError('No picture sources are currently enabled.');
+            return;
+        }
+        return;
+    }
+    
     setSelectedSource(newSource);
     
     // Show/hide Bing picture selector
@@ -188,10 +210,16 @@ if (infoPanel) {
 
 // Settings panel handlers
 if (settingsToggle) {
-    settingsToggle.addEventListener('click', (e) => {
+    settingsToggle.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (settingsPanel) {
+            const isOpening = !settingsPanel.classList.contains('visible');
             settingsPanel.classList.toggle('visible');
+            
+            // Refresh sources when opening settings panel to show latest enabled/disabled sources
+            if (isOpening) {
+                await updateSourceSelector(true);
+            }
         }
     });
 }
@@ -252,20 +280,36 @@ if (toggleDimensions) {
 }
 
 // Load available sources from API
-async function loadAvailableSources() {
-    // Check cache first (cache for 1 hour)
-    const cachedDate = localStorage.getItem(SOURCES_CACHE_DATE_KEY);
-    const cachedSources = localStorage.getItem(SOURCES_CACHE_KEY);
+// forceRefresh: if true, bypasses cache and fetches fresh data
+async function loadAvailableSources(forceRefresh = false) {
     const now = Date.now();
-    const oneHour = 60 * 60 * 1000;
+    const fiveMinutes = 5 * 60 * 1000; // Cache for 5 minutes for faster updates
     
-    if (cachedDate && cachedSources && (now - parseInt(cachedDate)) < oneHour) {
-        try {
-            const sources = JSON.parse(cachedSources);
-            AVAILABLE_SOURCES = sources.map(s => s.value);
-            return sources;
-        } catch (e) {
-            // Cache corrupted, continue to fetch
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+        const cachedDate = localStorage.getItem(SOURCES_CACHE_DATE_KEY);
+        const cachedSources = localStorage.getItem(SOURCES_CACHE_KEY);
+        
+        if (cachedDate && cachedSources && (now - parseInt(cachedDate)) < fiveMinutes) {
+            try {
+                const sources = JSON.parse(cachedSources);
+                // Only include enabled sources
+                const enabledSources = sources.filter(s => s.enabled !== false);
+                AVAILABLE_SOURCES = enabledSources.map(s => s.value);
+                
+                // Validate current selection is still available (even with cache)
+                // Check stored source directly to avoid recursion
+                const storedSource = localStorage.getItem(SOURCE_KEY);
+                if (storedSource && !AVAILABLE_SOURCES.includes(storedSource)) {
+                    // Current source was disabled - force refresh to get latest state
+                    console.log('Current source disabled, refreshing sources...');
+                    return await loadAvailableSources(true);
+                }
+                
+                return enabledSources;
+            } catch (e) {
+                // Cache corrupted, continue to fetch
+            }
         }
     }
     
@@ -276,27 +320,41 @@ async function loadAvailableSources() {
         }
         
         const sources = await response.json();
-        AVAILABLE_SOURCES = sources.map(s => s.value);
+        // Only include enabled sources
+        const enabledSources = sources.filter(s => s.enabled !== false);
+        AVAILABLE_SOURCES = enabledSources.map(s => s.value);
         
-        // Cache the sources
+        // Cache the sources (including disabled ones for reference)
         localStorage.setItem(SOURCES_CACHE_KEY, JSON.stringify(sources));
         localStorage.setItem(SOURCES_CACHE_DATE_KEY, now.toString());
         
-        return sources;
+        return enabledSources;
     } catch (error) {
-        console.error('Failed to load sources from API, using fallback:', error);
-        // Use fallback sources
-        return [
-            { value: 'apod', label: 'NASA APOD', enabled: true },
-            { value: 'wikipedia', label: 'Wikipedia POD', enabled: true },
-            { value: 'bing', label: 'Bing POD', enabled: true }
-        ];
+        console.error('Failed to load sources from API:', error);
+        // Use cached sources if available (even if expired)
+        const cachedSources = localStorage.getItem(SOURCES_CACHE_KEY);
+        if (cachedSources) {
+            try {
+                const sources = JSON.parse(cachedSources);
+                const enabledSources = sources.filter(s => s.enabled !== false);
+                AVAILABLE_SOURCES = enabledSources.map(s => s.value);
+                console.log('Using cached sources (API unavailable)');
+                return enabledSources;
+            } catch (e) {
+                // Cache corrupted
+            }
+        }
+        
+        // Last resort: return empty array - extension will show error
+        console.error('No sources available - API failed and no cache');
+        AVAILABLE_SOURCES = [];
+        return [];
     }
 }
 
 // Update source selector dropdown with available sources
-async function updateSourceSelector() {
-    const sources = await loadAvailableSources();
+async function updateSourceSelector(forceRefresh = false) {
+    const sources = await loadAvailableSources(forceRefresh);
     
     if (!sourceSelect) return;
     
@@ -305,6 +363,15 @@ async function updateSourceSelector() {
     
     // Clear existing options
     sourceSelect.innerHTML = '';
+    
+    // Check if we have any sources
+    if (sources.length === 0) {
+        sourceSelect.innerHTML = '<option value="">No sources available</option>';
+        sourceSelect.disabled = true;
+        return;
+    }
+    
+    sourceSelect.disabled = false;
     
     // Add options for each enabled source
     sources.forEach(source => {
@@ -324,20 +391,41 @@ async function updateSourceSelector() {
         // Clear stored source if it's no longer available
         if (currentValue && !AVAILABLE_SOURCES.includes(currentValue)) {
             localStorage.removeItem(SOURCE_KEY);
+            // Also clear Bing picture selection if Bing was disabled
+            if (currentValue === 'bing') {
+                localStorage.removeItem(BING_PICTURE_KEY);
+            }
         }
     }
 }
 
 // Get selected source from localStorage (if user has manually selected)
 // Returns null if no manual selection has been made
+// Validates that the source is still enabled
 function getSelectedSource() {
-    return localStorage.getItem(SOURCE_KEY);
+    const stored = localStorage.getItem(SOURCE_KEY);
+    if (!stored) {
+        return null;
+    }
+    
+    // Validate that the stored source is still available
+    if (AVAILABLE_SOURCES.length > 0 && !AVAILABLE_SOURCES.includes(stored)) {
+        // Source is no longer enabled - clear it
+        localStorage.removeItem(SOURCE_KEY);
+        if (stored === 'bing') {
+            localStorage.removeItem(BING_PICTURE_KEY);
+        }
+        return null;
+    }
+    
+    return stored;
 }
 
 // Get a random source from available sources
 function getRandomSource() {
     if (AVAILABLE_SOURCES.length === 0) {
-        return DEFAULT_SOURCE;
+        // No sources available - return null to trigger error handling
+        return null;
     }
     const randomIndex = Math.floor(Math.random() * AVAILABLE_SOURCES.length);
     return AVAILABLE_SOURCES[randomIndex];
@@ -613,7 +701,29 @@ async function loadBingPictures(pickRandom = false) {
 
 // Fetch picture data from backend API with fallback
 async function fetchPicture(source = null) {
-    const selectedSource = source || getSelectedSource();
+    let selectedSource = source || getSelectedSource();
+    
+    // Validate that the source is still enabled
+    if (selectedSource && !AVAILABLE_SOURCES.includes(selectedSource)) {
+        // Source is no longer enabled - switch to first available source
+        if (AVAILABLE_SOURCES.length > 0) {
+            selectedSource = AVAILABLE_SOURCES[0];
+            setSelectedSource(selectedSource);
+            if (sourceSelect) {
+                sourceSelect.value = selectedSource;
+            }
+        } else {
+            throw new Error('No picture sources are currently enabled. Please enable sources in the admin panel.');
+        }
+    }
+    
+    if (!selectedSource) {
+        // No source selected and none available
+        if (AVAILABLE_SOURCES.length === 0) {
+            throw new Error('No picture sources are currently enabled. Please enable sources in the admin panel.');
+        }
+        selectedSource = AVAILABLE_SOURCES[0];
+    }
     
     // For Bing, check if a specific date is selected
     let url;
@@ -962,7 +1072,14 @@ function showError(message) {
 async function init() {
     try {
         // Load available sources first and update selector
-        await updateSourceSelector();
+        // Use normal caching - will refresh if cache expired (5 minutes) or force refresh when needed
+        await updateSourceSelector(false);
+        
+        // Check if we have any sources available
+        if (AVAILABLE_SOURCES.length === 0) {
+            showError('No picture sources are currently enabled. Please enable sources in the admin panel.');
+            return;
+        }
         
         // Check if random on new tab is enabled (default to true if not set)
         const stored = localStorage.getItem(RANDOM_ON_NEW_TAB_KEY);
@@ -973,6 +1090,11 @@ async function init() {
         if (randomEnabled) {
             // Random mode: always pick a random source for this new tab
             source = getRandomSource();
+            if (!source) {
+                // No sources available (shouldn't happen due to check above, but handle gracefully)
+                showError('No picture sources are currently enabled.');
+                return;
+            }
             // Update the dropdown to show the random selection (but don't save it)
             if (sourceSelect) {
                 sourceSelect.value = source;
@@ -983,12 +1105,21 @@ async function init() {
             if (!source) {
                 // No source saved - pick a random one and save it
                 source = getRandomSource();
+                if (!source) {
+                    showError('No picture sources are currently enabled.');
+                    return;
+                }
                 if (sourceSelect) {
                     sourceSelect.value = source;
                 }
                 setSelectedSource(source);
             } else {
-                // User has manually selected a source - use that
+                // User has manually selected a source - validate it's still enabled
+                if (!AVAILABLE_SOURCES.includes(source)) {
+                    // Source was disabled - switch to first available
+                    source = AVAILABLE_SOURCES[0];
+                    setSelectedSource(source);
+                }
                 if (sourceSelect) {
                     sourceSelect.value = source;
                 }

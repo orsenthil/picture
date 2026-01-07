@@ -30,6 +30,7 @@ rsync -a --exclude='.DS_Store' \
          --exclude='*~' \
          --exclude='README*.md' \
          --exclude='*.production.json' \
+         --exclude='*.production.js' \
          --exclude='__tests__' \
          --exclude='node_modules' \
          --exclude='jest.setup.js' \
@@ -52,6 +53,8 @@ find "$TEMP_DIR" -name "*.swp" -delete 2>/dev/null || true
 find "$TEMP_DIR" -name "*.swo" -delete 2>/dev/null || true
 find "$TEMP_DIR" -name "*~" -delete 2>/dev/null || true
 find "$TEMP_DIR" -name "README*.md" -delete 2>/dev/null || true
+find "$TEMP_DIR" -name "*.production.json" -delete 2>/dev/null || true
+find "$TEMP_DIR" -name "*.production.js" -delete 2>/dev/null || true
 find "$TEMP_DIR" -type d -name "__tests__" -exec rm -rf {} + 2>/dev/null || true
 find "$TEMP_DIR" -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
 find "$TEMP_DIR" -name "jest.setup.js" -delete 2>/dev/null || true
@@ -68,14 +71,28 @@ if [ -f "$EXTENSION_DIR/manifest.production.json" ]; then
     cp "$EXTENSION_DIR/manifest.production.json" "$TEMP_DIR/manifest.json"
     # Remove the production.json file from temp dir (it's no longer needed)
     find "$TEMP_DIR" -name "*.production.json" -delete 2>/dev/null || true
+find "$TEMP_DIR" -name "*.production.js" -delete 2>/dev/null || true
 else
     echo "Warning: manifest.production.json not found, using manifest.json (may include localhost)"
     # Still remove any production.json files from temp dir
     find "$TEMP_DIR" -name "*.production.json" -delete 2>/dev/null || true
+find "$TEMP_DIR" -name "*.production.js" -delete 2>/dev/null || true
+fi
+
+# Replace config.js with production version for packaging
+if [ -f "$EXTENSION_DIR/config.production.js" ]; then
+    echo "Using production config..."
+    cp "$EXTENSION_DIR/config.production.js" "$TEMP_DIR/config.js"
+    # Remove the production.js file from temp dir (it's no longer needed)
+    find "$TEMP_DIR" -name "*.production.js" -delete 2>/dev/null || true
+else
+    echo "Warning: config.production.js not found, using config.js (may include localhost)"
+    # Still remove any production.js files from temp dir
+    find "$TEMP_DIR" -name "*.production.js" -delete 2>/dev/null || true
 fi
 
 # Check for required files
-REQUIRED_FILES=("manifest.json" "newtab.html" "newtab.js" "styles.css")
+REQUIRED_FILES=("manifest.json" "config.js" "newtab.html" "newtab.js" "styles.css")
 for file in "${REQUIRED_FILES[@]}"; do
     if [ ! -f "$TEMP_DIR/$file" ]; then
         echo "Warning: Required file $file not found!"
