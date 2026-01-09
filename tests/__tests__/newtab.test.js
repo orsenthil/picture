@@ -65,6 +65,11 @@ describe('newtab.js Tests', () => {
       error: jest.fn(),
     };
     
+    // Set up CONFIG object that newtab.js expects
+    global.CONFIG = {
+      BACKEND_API_URL: 'http://localhost:8000/api'
+    };
+    
     // Set up window.location for API URL construction
     Object.defineProperty(window, 'location', {
       value: {
@@ -291,6 +296,7 @@ describe('newtab.js Tests', () => {
         original_explanation: 'Original text',
         image_url: 'https://example.com/image.jpg',
         hd_image_url: 'https://example.com/hd.jpg',
+        display_image_url: 'https://example.com/hd.jpg',
         media_type: 'image',
         copyright: 'Test Copyright',
         source_url: 'https://example.com',
@@ -298,16 +304,17 @@ describe('newtab.js Tests', () => {
         image_height: 1080,
       };
       
+      // Backend provides all standardized fields - frontend trusts them
       const normalized = {
         source: 'apod',
         title: backendData.title,
         date: backendData.date,
         processed_explanation: backendData.processed_explanation,
-        display_explanation: backendData.display_explanation || backendData.processed_explanation || backendData.original_explanation,
+        display_explanation: backendData.display_explanation,
         original_explanation: backendData.original_explanation,
         image_url: backendData.image_url,
         hd_image_url: backendData.hd_image_url,
-        display_image_url: backendData.hd_image_url || backendData.image_url,
+        display_image_url: backendData.display_image_url,
         media_type: backendData.media_type,
         copyright: backendData.copyright,
         source_url: backendData.source_url,
@@ -317,36 +324,8 @@ describe('newtab.js Tests', () => {
       
       expect(normalized.title).toBe('Test Title');
       expect(normalized.display_explanation).toBe('Display text');
+      expect(normalized.display_image_url).toBe('https://example.com/hd.jpg');
       expect(normalized.image_width).toBe(1920);
-    });
-
-    test('normalizePictureData should handle NASA API fallback format', () => {
-      const nasaData = {
-        title: 'NASA Title',
-        date: '2024-01-15',
-        explanation: 'NASA explanation',
-        url: 'https://apod.nasa.gov/image.jpg',
-        hdurl: 'https://apod.nasa.gov/hd.jpg',
-        media_type: 'image',
-        copyright: 'NASA',
-      };
-      
-      const normalized = {
-        source: 'apod',
-        title: nasaData.title,
-        date: nasaData.date,
-        display_explanation: nasaData.explanation,
-        original_explanation: nasaData.explanation,
-        image_url: nasaData.url,
-        hd_image_url: nasaData.hdurl,
-        display_image_url: nasaData.hdurl || nasaData.url,
-        media_type: nasaData.media_type,
-        copyright: nasaData.copyright,
-      };
-      
-      expect(normalized.title).toBe('NASA Title');
-      expect(normalized.display_explanation).toBe('NASA explanation');
-      expect(normalized.display_image_url).toBe('https://apod.nasa.gov/hd.jpg');
     });
   });
 
@@ -357,51 +336,43 @@ describe('newtab.js Tests', () => {
       const imageWidth = null;
       const imageHeight = null;
       
+      // Simplified: always returns cover mode
       const result = {
         objectFit: 'cover',
         objectPosition: 'center',
         scale: 1,
-        mode: 'Default (no dimensions)',
+        mode: 'Cover',
         displayWidth: viewportWidth,
         displayHeight: viewportHeight,
       };
       
       expect(result.objectFit).toBe('cover');
-      expect(result.mode).toBe('Default (no dimensions)');
+      expect(result.mode).toBe('Cover');
     });
 
-    test('calculateOptimalDisplay should calculate correct aspect ratios', () => {
+    test('calculateOptimalDisplay should use simple cover strategy', () => {
       const viewportWidth = 1920;
       const viewportHeight = 1080;
       const imageWidth = 3840;
       const imageHeight = 2160;
       
-      const viewportAspect = viewportWidth / viewportHeight;
-      const imageAspect = imageWidth / imageHeight;
-      const aspectRatioDiff = Math.abs(imageAspect - viewportAspect);
+      // Simplified: just calculate scale for cover
+      const scaleToFitWidth = viewportWidth / imageWidth;
+      const scaleToFitHeight = viewportHeight / imageHeight;
+      const scale = Math.max(scaleToFitWidth, scaleToFitHeight);
       
-      expect(viewportAspect).toBeCloseTo(1.777, 2);
-      expect(imageAspect).toBeCloseTo(1.777, 2);
-      expect(aspectRatioDiff).toBeCloseTo(0, 2);
-    });
-
-    test('calculateOptimalDisplay should use cover for perfect match', () => {
-      const viewportWidth = 1920;
-      const viewportHeight = 1080;
-      const imageWidth = 3840;
-      const imageHeight = 2160;
+      const result = {
+        objectFit: 'cover',
+        objectPosition: 'center',
+        scale: scale.toFixed(2),
+        mode: 'Cover',
+        displayWidth: viewportWidth,
+        displayHeight: viewportHeight,
+      };
       
-      const viewportAspect = viewportWidth / viewportHeight;
-      const imageAspect = imageWidth / imageHeight;
-      const aspectRatioDiff = Math.abs(imageAspect - viewportAspect);
-      
-      if (aspectRatioDiff < 0.1) {
-        const scaleToFitWidth = viewportWidth / imageWidth;
-        const scaleToFitHeight = viewportHeight / imageHeight;
-        const scaleToFill = Math.max(scaleToFitWidth, scaleToFitHeight);
-        
-        expect(scaleToFill).toBeCloseTo(0.5, 1);
-      }
+      expect(result.objectFit).toBe('cover');
+      expect(result.mode).toBe('Cover');
+      expect(parseFloat(result.scale)).toBeCloseTo(0.5, 1);
     });
   });
 
@@ -473,10 +444,8 @@ describe('newtab.js Tests', () => {
         // Actually call the loadBingPictures function
         await loadBingPictures();
         
-        // The error message should indicate an error occurred
-        // For "Failed to fetch" errors, it shows "Backend not accessible. Is the server running?"
-        // For other errors, it shows "Error: ..." or "Error loading pictures"
-        expect(select.innerHTML).toMatch(/Error|Backend not accessible|Server error/);
+        // Simplified error handling - just shows generic error message
+        expect(select.innerHTML).toContain('Error loading pictures');
       }
     });
 
@@ -559,33 +528,17 @@ describe('newtab.js Tests', () => {
       }
     });
 
-    test('fetchPicture should fallback to NASA API for APOD', async () => {
-      // First call fails (backend)
+    test('fetchPicture should throw error when backend fails', async () => {
+      // Backend is the single source of truth - no fallback
       fetch.mockRejectedValueOnce(new Error('Backend failed'));
       
-      // Second call succeeds (NASA)
-      const nasaData = {
-        title: 'NASA Picture',
-        date: '2024-01-15',
-        explanation: 'NASA explanation',
-        url: 'https://apod.nasa.gov/image.jpg',
-        hdurl: 'https://apod.nasa.gov/hd.jpg',
-        media_type: 'image',
-      };
-      
-      fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => nasaData,
-      });
-      
       try {
-        await fetch('http://localhost:8000/api/pictures/today/apod/');
+        await fetchPicture('apod');
+        // Should not reach here
+        expect(true).toBe(false);
       } catch (error) {
-        // Fallback to NASA
-        const nasaResponse = await fetch('https://api.nasa.gov/planetary/apod?api_key=test');
-        const nasaResult = await nasaResponse.json();
-        
-        expect(nasaResult.title).toBe('NASA Picture');
+        // Should throw the backend error
+        expect(error.message).toBe('Backend failed');
       }
     });
   });
