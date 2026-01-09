@@ -665,9 +665,9 @@ function displayPicture(data) {
     
     if (sourceLink) {
         const sourceNames = {
-            'apod': 'NASA APOD',
-            'wikipedia': 'Wikipedia POD',
-            'bing': 'Bing POD'
+            'apod': 'NASA Picture of the Day',
+            'wikipedia': 'Wikipedia Picture of the Day',
+            'bing': 'Bing Picture of the Day'
         };
         
         if (data.source === 'wikipedia') {
@@ -850,9 +850,9 @@ async function init() {
         updateDimensionsOverlay(viewportWidth, viewportHeight, null, null, null);
         
         const sourceNames = {
-            'apod': 'NASA APOD',
-            'wikipedia': 'Wikipedia POD',
-            'bing': 'Bing POD'
+            'apod': 'NASA Picture of the Day',
+            'wikipedia': 'Wikipedia Picture of the Day',
+            'bing': 'Bing Picture of the Day'
         };
         const sourceName = sourceNames[source] || 'Picture';
         loadingText.textContent = `Loading ${sourceName}...`;
