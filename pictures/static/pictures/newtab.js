@@ -217,53 +217,96 @@ if (toggleDimensions) {
 }
 
 // Load available sources from API
-async function loadAvailableSources() {
-    // Check cache first (cache for 1 hour)
-    const cachedDate = localStorage.getItem(SOURCES_CACHE_DATE_KEY);
-    const cachedSources = localStorage.getItem(SOURCES_CACHE_KEY);
+// forceRefresh: if true, bypasses cache and fetches fresh data
+async function loadAvailableSources(forceRefresh = false) {
     const now = Date.now();
-    const oneHour = 60 * 60 * 1000;
+    // Reduced cache time to 30 seconds for faster detection of admin changes
+    // In development (localhost), use even shorter cache (10 seconds) for immediate updates
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const cacheTime = isLocalhost ? 10 * 1000 : 30 * 1000; // 10 seconds for localhost, 30 seconds for production
     
-    if (cachedDate && cachedSources && (now - parseInt(cachedDate)) < oneHour) {
-        try {
-            const sources = JSON.parse(cachedSources);
-            AVAILABLE_SOURCES = sources.map(s => s.value);
-            return sources;
-        } catch (e) {
-            // Cache corrupted, continue to fetch
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+        const cachedDate = localStorage.getItem(SOURCES_CACHE_DATE_KEY);
+        const cachedSources = localStorage.getItem(SOURCES_CACHE_KEY);
+        
+        if (cachedDate && cachedSources && (now - parseInt(cachedDate)) < cacheTime) {
+            try {
+                const sources = JSON.parse(cachedSources);
+                // Only include enabled sources
+                const enabledSources = sources.filter(s => s.enabled !== false);
+                AVAILABLE_SOURCES = enabledSources.map(s => s.value);
+                
+                // Validate current selection is still available (even with cache)
+                // Check stored source directly to avoid recursion
+                const storedSource = localStorage.getItem(SOURCE_KEY);
+                if (storedSource && !AVAILABLE_SOURCES.includes(storedSource)) {
+                    // Current source was disabled - force refresh to get latest state
+                    console.log('Current source disabled, refreshing sources...');
+                    return await loadAvailableSources(true);
+                }
+                
+                return enabledSources;
+            } catch (e) {
+                // Cache corrupted, continue to fetch
+            }
         }
     }
     
     try {
-        const response = await fetch(`${PICTURES_API_URL}/sources/`);
+        console.log('Fetching sources from API (forceRefresh:', forceRefresh, ')');
+        const response = await fetch(`${PICTURES_API_URL}/sources/`, { cache: forceRefresh ? 'no-cache' : 'default' });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const sources = await response.json();
-        AVAILABLE_SOURCES = sources.map(s => s.value);
+        console.log('API returned sources:', sources);
+        // Only include enabled sources
+        const enabledSources = sources.filter(s => s.enabled !== false);
+        console.log('Filtered enabled sources:', enabledSources);
+        AVAILABLE_SOURCES = enabledSources.map(s => s.value);
+        console.log('AVAILABLE_SOURCES set to:', AVAILABLE_SOURCES);
         
-        // Cache the sources
+        // Cache the sources (including disabled ones for reference)
         localStorage.setItem(SOURCES_CACHE_KEY, JSON.stringify(sources));
         localStorage.setItem(SOURCES_CACHE_DATE_KEY, now.toString());
+        console.log('Sources cached at:', new Date(now).toISOString());
         
-        return sources;
+        return enabledSources;
     } catch (error) {
-        console.error('Failed to load sources from API, using fallback:', error);
-        // Use fallback sources
-        return [
-            { value: 'apod', label: 'NASA APOD', enabled: true },
-            { value: 'wikipedia', label: 'Wikipedia POD', enabled: true },
-            { value: 'bing', label: 'Bing POD', enabled: true }
-        ];
+        console.error('Failed to load sources from API:', error);
+        // Use cached sources if available (even if expired)
+        const cachedSources = localStorage.getItem(SOURCES_CACHE_KEY);
+        if (cachedSources) {
+            try {
+                const sources = JSON.parse(cachedSources);
+                const enabledSources = sources.filter(s => s.enabled !== false);
+                AVAILABLE_SOURCES = enabledSources.map(s => s.value);
+                console.log('Using cached sources (API unavailable)');
+                return enabledSources;
+            } catch (e) {
+                // Cache corrupted
+            }
+        }
+        
+        // Last resort: return empty array - website will show error
+        console.error('No sources available - API failed and no cache');
+        AVAILABLE_SOURCES = [];
+        return [];
     }
 }
 
 // Update source selector dropdown with available sources
-async function updateSourceSelector() {
-    const sources = await loadAvailableSources();
+async function updateSourceSelector(forceRefresh = false) {
+    console.log('updateSourceSelector called with forceRefresh:', forceRefresh);
+    const sources = await loadAvailableSources(forceRefresh);
+    console.log('Loaded sources:', sources);
     
-    if (!sourceSelect) return;
+    if (!sourceSelect) {
+        console.warn('sourceSelect element not found');
+        return;
+    }
     
     // Store current selection
     const currentValue = sourceSelect.value;
@@ -823,7 +866,11 @@ function showError(message) {
 async function init() {
     try {
         // Load available sources first and update selector
-        await updateSourceSelector();
+        // Force refresh on localhost (development) to immediately pick up admin changes
+        // In production, use normal caching (30 seconds)
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        console.log('Initializing sources, isLocalhost:', isLocalhost, 'forceRefresh:', isLocalhost);
+        await updateSourceSelector(isLocalhost);
         
         const stored = localStorage.getItem(RANDOM_ON_NEW_TAB_KEY);
         const randomEnabled = stored === null ? true : stored === 'true';

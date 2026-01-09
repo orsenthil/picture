@@ -283,14 +283,17 @@ if (toggleDimensions) {
 // forceRefresh: if true, bypasses cache and fetches fresh data
 async function loadAvailableSources(forceRefresh = false) {
     const now = Date.now();
-    const fiveMinutes = 5 * 60 * 1000; // Cache for 5 minutes for faster updates
+    // Reduced cache time to 30 seconds for faster detection of admin changes
+    // In development (localhost), use even shorter cache (10 seconds) for immediate updates
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const cacheTime = isLocalhost ? 10 * 1000 : 30 * 1000; // 10 seconds for localhost, 30 seconds for production
     
     // Check cache first (unless forcing refresh)
     if (!forceRefresh) {
         const cachedDate = localStorage.getItem(SOURCES_CACHE_DATE_KEY);
         const cachedSources = localStorage.getItem(SOURCES_CACHE_KEY);
         
-        if (cachedDate && cachedSources && (now - parseInt(cachedDate)) < fiveMinutes) {
+        if (cachedDate && cachedSources && (now - parseInt(cachedDate)) < cacheTime) {
             try {
                 const sources = JSON.parse(cachedSources);
                 // Only include enabled sources
@@ -1072,8 +1075,10 @@ function showError(message) {
 async function init() {
     try {
         // Load available sources first and update selector
-        // Use normal caching - will refresh if cache expired (5 minutes) or force refresh when needed
-        await updateSourceSelector(false);
+        // Force refresh on localhost (development) to immediately pick up admin changes
+        // In production, use normal caching (30 seconds)
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        await updateSourceSelector(isLocalhost);
         
         // Check if we have any sources available
         if (AVAILABLE_SOURCES.length === 0) {

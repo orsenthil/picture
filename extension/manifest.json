@@ -20,6 +20,9 @@
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' https://www.googletagmanager.com; object-src 'self'"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "picture-of-the-day@learntosolveit.com",

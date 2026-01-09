@@ -3,6 +3,7 @@ Unit tests for PictureOfTheDay API views
 """
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import date, timedelta
@@ -123,10 +124,14 @@ class PictureOfTheDayViewSetTest(TestCase):
     def test_today_endpoint_fallback_to_yesterday(self):
         """Test today endpoint falls back to yesterday"""
         # Delete today's picture, create yesterday's
+        # Use timezone-aware date to match the view's behavior
+        today = timezone.now().date()
+        yesterday = today - timedelta(days=1)
+        
         self.apod_picture.delete()
         yesterday_picture = PictureOfTheDay.objects.create(
             source=PictureSource.APOD,
-            date=date.today() - timedelta(days=1),
+            date=yesterday,
             title='Yesterday APOD',
             original_explanation='Yesterday APOD explanation',
             image_url='https://example.com/yesterday.jpg',

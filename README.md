@@ -47,6 +47,17 @@ python manage.py runserver
 Visit `http://localhost:8000/`
 
 
+**Deployment**
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+Quick deployment workflow:
+1. Deploy website/API to Kubernetes
+2. Test website and API endpoints
+3. Package browser extension
+4. Test browser extension
+5. Publish to extension stores
+
 **Credits**
 
 - Images from NASA's Astronomy Picture of the Day
