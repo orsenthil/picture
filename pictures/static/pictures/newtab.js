@@ -653,12 +653,14 @@ function sanitizeHtmlEntities(text) {
 }
 
 function normalizePictureData(data, source) {
+    // Don't sanitize processed_explanation - it contains HTML links that must be preserved
+    // Only sanitize plain text fields
     return {
         source: source,
         title: sanitizeHtmlEntities(data.title),
         date: data.date,
-        processed_explanation: sanitizeHtmlEntities(data.processed_explanation),
-        display_explanation: sanitizeHtmlEntities(data.display_explanation || data.processed_explanation || data.original_explanation || data.explanation),
+        processed_explanation: data.processed_explanation,  // Keep HTML links intact
+        display_explanation: data.display_explanation || data.processed_explanation || sanitizeHtmlEntities(data.original_explanation || data.explanation),
         original_explanation: sanitizeHtmlEntities(data.original_explanation || data.explanation),
         simplified_explanation: sanitizeHtmlEntities(data.simplified_explanation),
         is_processed: data.is_processed || false,
@@ -695,11 +697,12 @@ function getCachedPicture(source) {
     
     const data = JSON.parse(cached);
     // Sanitize cached data to handle old cached data with HTML entities
+    // Don't sanitize processed_explanation if it contains HTML links
     return {
         ...data,
         title: sanitizeHtmlEntities(data.title),
-        display_explanation: sanitizeHtmlEntities(data.display_explanation),
-        processed_explanation: sanitizeHtmlEntities(data.processed_explanation),
+        display_explanation: data.display_explanation ? (data.display_explanation.includes('<a ') ? data.display_explanation : sanitizeHtmlEntities(data.display_explanation)) : null,
+        processed_explanation: data.processed_explanation,  // Keep HTML links intact
         original_explanation: sanitizeHtmlEntities(data.original_explanation),
         simplified_explanation: sanitizeHtmlEntities(data.simplified_explanation),
         copyright: sanitizeHtmlEntities(data.copyright),
@@ -719,6 +722,14 @@ function displayPicture(data) {
         throw new Error('No data received');
     }
     
+    // Debug logging
+    console.log('displayPicture called with data:', {
+        has_processed_explanation: !!data.processed_explanation,
+        has_display_explanation: !!data.display_explanation,
+        is_processed: data.is_processed,
+        source: data.source
+    });
+    
     if (data.title) {
         apodTitle.textContent = data.title;
     } else {
@@ -730,6 +741,10 @@ function displayPicture(data) {
     }
     
     if (data.processed_explanation) {
+        // Processed explanation with Wikipedia links - render as HTML
+        const linkCount = (data.processed_explanation.match(/<a\s+href/g) || []).length;
+        console.log('Displaying processed_explanation with', linkCount, 'Wikipedia links');
+        console.log('processed_explanation length:', data.processed_explanation.length);
         apodDescription.innerHTML = data.processed_explanation;
     } else if (data.display_explanation) {
         if (data.is_processed && data.simplified_explanation) {
@@ -950,9 +965,47 @@ async function init() {
         
         let pictureData = getCachedPicture(source);
         
+        // Always fetch fresh data if cached data is missing processed_explanation
+        // This ensures we get the latest processed version from the API
+        if (pictureData && pictureData.is_processed && !pictureData.processed_explanation) {
+            console.log('Cached data missing processed_explanation, clearing cache and fetching fresh data...');
+            // Clear the cache to force fresh fetch
+            localStorage.removeItem(CACHE_KEY);
+            localStorage.removeItem(CACHE_DATE_KEY);
+            pictureData = null;
+        }
+        
+        // For Wikipedia, always check API if cache doesn't have processed_explanation
+        // This handles the case where a picture was processed after being cached
+        if (pictureData && source === 'wikipedia' && !pictureData.processed_explanation) {
+            console.log('Wikipedia picture in cache without processed_explanation, checking API...');
+            try {
+                const freshData = await fetchPicture(source);
+                if (freshData.is_processed && freshData.processed_explanation) {
+                    console.log('Found processed version in API, using it and updating cache');
+                    pictureData = freshData;
+                    cachePicture(freshData);
+                }
+            } catch (error) {
+                console.warn('Failed to check for processed version, using cache:', error);
+            }
+        }
+        
         if (!pictureData) {
+            console.log('Fetching fresh picture data from API...');
             pictureData = await fetchPicture(source);
+            console.log('Fetched data:', {
+                has_processed_explanation: !!pictureData.processed_explanation,
+                is_processed: pictureData.is_processed,
+                source: pictureData.source
+            });
             cachePicture(pictureData);
+        } else {
+            console.log('Using cached picture data:', {
+                has_processed_explanation: !!pictureData.processed_explanation,
+                is_processed: pictureData.is_processed,
+                source: pictureData.source
+            });
         }
         
         displayPicture(pictureData);

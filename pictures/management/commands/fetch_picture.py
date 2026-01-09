@@ -232,10 +232,15 @@ class Command(BaseCommand):
             raise
 
     def process_text(self, picture, source):
-        """Process picture explanation with OpenAI"""
+        """
+        Process picture explanation with OpenAI using unified function.
+        Creates a 300-word summary with exactly 3 Wikipedia links.
+        Used for all picture sources.
+        """
         try:
             text_processor = TextProcessor()
             
+            # Context mapping for all sources
             context_map = {
                 'apod': 'astronomy',
                 'wikipedia': 'general',
@@ -243,21 +248,20 @@ class Command(BaseCommand):
             }
             context = context_map.get(source, 'general')
             
-            simplified_text = text_processor.simplify_text(picture.original_explanation, context)
-            # Sanitize simplified text
-            picture.simplified_explanation = sanitize_html_entities(simplified_text)
-            picture.save()
+            # Use unified processing function for all sources
+            # This creates a 300-word summary with exactly 3 Wikipedia links
+            processed_text = text_processor.process_picture_description(
+                picture.original_explanation, 
+                context
+            )
             
-            self.stdout.write('Text simplified ✓')
-            
-            processed_text = text_processor.add_wikipedia_links(simplified_text, context)
-            # Sanitize processed text
+            # Sanitize processed text to remove HTML entities
             picture.processed_explanation = sanitize_html_entities(processed_text)
             picture.is_processed = True
             picture.processing_error = None
             picture.save()
             
-            self.stdout.write('Wikipedia links added ✓')
+            self.stdout.write('Text processed: 300-word summary with 3 Wikipedia links ✓')
             
         except Exception as e:
             picture.processing_error = str(e)

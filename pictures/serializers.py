@@ -19,7 +19,8 @@ class PictureOfTheDaySerializer(serializers.ModelSerializer):
             'source_display',
             'date',
             'title',
-            'display_explanation',
+            'processed_explanation',  # Include processed explanation with Wikipedia links
+            'display_explanation',  # Fallback property
             'display_image_url',
             'media_type',
             'copyright',
@@ -31,7 +32,7 @@ class PictureOfTheDaySerializer(serializers.ModelSerializer):
             'image_resolution',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'processed_explanation']
 
 
 class PictureOfTheDayDetailSerializer(serializers.ModelSerializer):

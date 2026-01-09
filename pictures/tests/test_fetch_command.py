@@ -124,8 +124,7 @@ class FetchPictureCommandTest(TestCase):
         # Mock text processor to prevent actual API calls
         mock_txt_processor_instance = MagicMock()
         mock_text_processor.return_value = mock_txt_processor_instance
-        mock_txt_processor_instance.simplify_text.return_value = 'Simplified text'
-        mock_txt_processor_instance.add_wikipedia_links.return_value = 'Processed text with links'
+        mock_txt_processor_instance.process_picture_description.return_value = 'Processed summary with 3 Wikipedia links'
         
         # Run command with --force
         out = StringIO()
@@ -139,8 +138,7 @@ class FetchPictureCommandTest(TestCase):
         # then process_text runs and sets it back to True
         self.assertTrue(picture.is_processed)
         # Verify that processing was called (indicating the reset allowed reprocessing)
-        mock_txt_processor_instance.simplify_text.assert_called_once()
-        mock_txt_processor_instance.add_wikipedia_links.assert_called_once()
+        mock_txt_processor_instance.process_picture_description.assert_called_once()
     
     @patch('pictures.management.commands.fetch_picture.get_fetcher')
     def test_fetch_picture_with_date(self, mock_get_fetcher):

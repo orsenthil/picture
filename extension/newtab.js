@@ -827,12 +827,14 @@ function sanitizeHtmlEntities(text) {
 
 // Normalize picture data to consistent format
 function normalizePictureData(data, source) {
+    // Don't sanitize processed_explanation - it contains HTML links that must be preserved
+    // Only sanitize plain text fields
     return {
         source: source,
         title: sanitizeHtmlEntities(data.title),
         date: data.date,
-        processed_explanation: sanitizeHtmlEntities(data.processed_explanation),
-        display_explanation: sanitizeHtmlEntities(data.display_explanation || data.processed_explanation || data.original_explanation || data.explanation),
+        processed_explanation: data.processed_explanation,  // Keep HTML links intact
+        display_explanation: data.display_explanation || data.processed_explanation || sanitizeHtmlEntities(data.original_explanation || data.explanation),
         original_explanation: sanitizeHtmlEntities(data.original_explanation || data.explanation),
         simplified_explanation: sanitizeHtmlEntities(data.simplified_explanation),
         is_processed: data.is_processed || false,
@@ -871,11 +873,12 @@ function getCachedPicture(source) {
     
     const data = JSON.parse(cached);
     // Sanitize cached data to handle old cached data with HTML entities
+    // Don't sanitize processed_explanation if it contains HTML links
     return {
         ...data,
         title: sanitizeHtmlEntities(data.title),
-        display_explanation: sanitizeHtmlEntities(data.display_explanation),
-        processed_explanation: sanitizeHtmlEntities(data.processed_explanation),
+        display_explanation: data.display_explanation ? (data.display_explanation.includes('<a ') ? data.display_explanation : sanitizeHtmlEntities(data.display_explanation)) : null,
+        processed_explanation: data.processed_explanation,  // Keep HTML links intact
         original_explanation: sanitizeHtmlEntities(data.original_explanation),
         simplified_explanation: sanitizeHtmlEntities(data.simplified_explanation),
         copyright: sanitizeHtmlEntities(data.copyright),
