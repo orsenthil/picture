@@ -8,7 +8,7 @@
 ## Features
 
 - [x] Add a cron to remove old pictures as database clean up and garbage collection.
-- [ ] Only in https://pictures.learntosolveit.com interface give a dismissable display of various browser icons with links to download the extension - show this only on desktop and not on mobile.
+- [x] Only in https://pictures.learntosolveit.com interface give a dismissable display of various browser icons with links to download the extension - show this only on desktop and not on mobile.
 
 ## Deployment & Infrastructure
 
