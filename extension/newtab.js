@@ -665,7 +665,7 @@ async function loadBingPictures(pickRandom = false) {
         pictures.forEach(picture => {
             const option = document.createElement('option');
             option.value = picture.date;
-            option.textContent = `${picture.date} - ${picture.title}`;
+            option.textContent = `${picture.date} - ${sanitizeHtmlEntities(picture.title)}`;
             bingPictureSelect.appendChild(option);
         });
         
@@ -808,23 +808,40 @@ async function fetchPicture(source = null) {
     }
 }
 
+// Sanitize HTML entities in text
+function sanitizeHtmlEntities(text) {
+    if (!text || typeof text !== 'string') {
+        return text;
+    }
+    
+    // Create a temporary DOM element to decode HTML entities
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    let sanitized = textarea.value;
+    
+    // Replace non-breaking spaces (U+00A0) with regular spaces
+    sanitized = sanitized.replace(/\u00A0/g, ' ');
+    
+    return sanitized;
+}
+
 // Normalize picture data to consistent format
 function normalizePictureData(data, source) {
     return {
         source: source,
-        title: data.title,
+        title: sanitizeHtmlEntities(data.title),
         date: data.date,
-        processed_explanation: data.processed_explanation,
-        display_explanation: data.display_explanation || data.processed_explanation || data.original_explanation || data.explanation,
-        original_explanation: data.original_explanation || data.explanation,
-        simplified_explanation: data.simplified_explanation,
+        processed_explanation: sanitizeHtmlEntities(data.processed_explanation),
+        display_explanation: sanitizeHtmlEntities(data.display_explanation || data.processed_explanation || data.original_explanation || data.explanation),
+        original_explanation: sanitizeHtmlEntities(data.original_explanation || data.explanation),
+        simplified_explanation: sanitizeHtmlEntities(data.simplified_explanation),
         is_processed: data.is_processed || false,
         media_type: data.media_type || 'image',
         image_url: data.image_url || data.url,
         hd_image_url: data.hd_image_url || data.hdurl,
         display_image_url: data.display_image_url || data.hd_image_url || data.hdurl || data.image_url || data.url,
         thumbnail_url: data.thumbnail_url,
-        copyright: data.copyright,
+        copyright: sanitizeHtmlEntities(data.copyright),
         source_url: data.source_url || data.nasa_url,
         image_width: data.image_width,
         image_height: data.image_height,
@@ -848,7 +865,21 @@ function getCachedPicture(source) {
     }
     
     const cached = localStorage.getItem(CACHE_KEY);
-    return cached ? JSON.parse(cached) : null;
+    if (!cached) {
+        return null;
+    }
+    
+    const data = JSON.parse(cached);
+    // Sanitize cached data to handle old cached data with HTML entities
+    return {
+        ...data,
+        title: sanitizeHtmlEntities(data.title),
+        display_explanation: sanitizeHtmlEntities(data.display_explanation),
+        processed_explanation: sanitizeHtmlEntities(data.processed_explanation),
+        original_explanation: sanitizeHtmlEntities(data.original_explanation),
+        simplified_explanation: sanitizeHtmlEntities(data.simplified_explanation),
+        copyright: sanitizeHtmlEntities(data.copyright),
+    };
 }
 
 // Cache picture data

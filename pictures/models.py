@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
+from .utils import sanitize_html_entities
 
 
 class PictureSource(models.TextChoices):
@@ -159,4 +160,20 @@ class PictureOfTheDay(models.Model):
         if self.image_width and self.image_height:
             return f"{self.image_width}x{self.image_height}"
         return None
+    
+    def save(self, *args, **kwargs):
+        """Override save to sanitize HTML entities in text fields"""
+        # Sanitize title and all explanation fields
+        if self.title:
+            self.title = sanitize_html_entities(self.title)
+        if self.original_explanation:
+            self.original_explanation = sanitize_html_entities(self.original_explanation)
+        if self.simplified_explanation:
+            self.simplified_explanation = sanitize_html_entities(self.simplified_explanation)
+        if self.processed_explanation:
+            self.processed_explanation = sanitize_html_entities(self.processed_explanation)
+        if self.copyright:
+            self.copyright = sanitize_html_entities(self.copyright)
+        
+        super().save(*args, **kwargs)
 

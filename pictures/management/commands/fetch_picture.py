@@ -8,6 +8,7 @@ from django.conf import settings
 from pictures.models import PictureOfTheDay, PictureSource
 from pictures.fetchers import get_fetcher
 from pictures.processors import ImageProcessor, TextProcessor
+from pictures.utils import sanitize_html_entities
 
 
 class Command(BaseCommand):
@@ -134,14 +135,19 @@ class Command(BaseCommand):
         """Save picture data to database"""
         picture_date = datetime.strptime(picture_data['date'], '%Y-%m-%d').date()
         
+        # Sanitize title and explanation to remove HTML entities
+        sanitized_title = sanitize_html_entities(picture_data['title'])
+        sanitized_explanation = sanitize_html_entities(picture_data['explanation'])
+        sanitized_copyright = sanitize_html_entities(picture_data.get('copyright')) if picture_data.get('copyright') else None
+        
         defaults = {
-            'title': picture_data['title'],
-            'original_explanation': picture_data['explanation'],
+            'title': sanitized_title,
+            'original_explanation': sanitized_explanation,
             'media_type': picture_data.get('media_type', 'image'),
             'image_url': picture_data.get('image_url', ''),
             'hd_image_url': picture_data.get('hd_image_url'),
             'thumbnail_url': picture_data.get('thumbnail_url'),
-            'copyright': picture_data.get('copyright'),
+            'copyright': sanitized_copyright,
             'source_url': picture_data.get('source_url'),
         }
         
@@ -238,13 +244,15 @@ class Command(BaseCommand):
             context = context_map.get(source, 'general')
             
             simplified_text = text_processor.simplify_text(picture.original_explanation, context)
-            picture.simplified_explanation = simplified_text
+            # Sanitize simplified text
+            picture.simplified_explanation = sanitize_html_entities(simplified_text)
             picture.save()
             
             self.stdout.write('Text simplified ✓')
             
             processed_text = text_processor.add_wikipedia_links(simplified_text, context)
-            picture.processed_explanation = processed_text
+            # Sanitize processed text
+            picture.processed_explanation = sanitize_html_entities(processed_text)
             picture.is_processed = True
             picture.processing_error = None
             picture.save()
