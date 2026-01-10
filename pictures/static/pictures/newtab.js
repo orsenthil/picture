@@ -340,6 +340,31 @@ function getSelectedSource() {
     return localStorage.getItem(SOURCE_KEY);
 }
 
+async function loadAllRecentPictures() {
+    try {
+        const response = await fetch(`${PICTURES_API_URL}/all_recent/`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const pictures = await response.json();
+        return pictures;
+    } catch (error) {
+        console.error('Failed to load recent pictures:', error);
+        return [];
+    }
+}
+
+async function getRandomPicture() {
+    const pictures = await loadAllRecentPictures();
+    
+    if (pictures.length === 0) {
+        return null;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * pictures.length);
+    return pictures[randomIndex];
+}
+
 function getRandomSource() {
     if (AVAILABLE_SOURCES.length === 0) {
         return DEFAULT_SOURCE;
@@ -923,9 +948,22 @@ async function init() {
         let source;
         
         if (randomEnabled) {
-            source = getRandomSource();
+            // New approach: pick a random picture from all available pictures
+            const randomPicture = await getRandomPicture();
+            if (!randomPicture) {
+                showError('No pictures are currently available.');
+                return;
+            }
+            
+            // Set the source based on the random picture
+            source = randomPicture.source;
             if (sourceSelect) {
                 sourceSelect.value = source;
+            }
+            
+            // If it's a Bing picture with a specific date, store that date
+            if (source === 'bing' && randomPicture.date) {
+                localStorage.setItem(BING_PICTURE_KEY, randomPicture.date);
             }
         } else {
             source = getSelectedSource();

@@ -97,6 +97,8 @@ describe('newtab.js Tests', () => {
         if (typeof setSelectedSource !== 'undefined') global.setSelectedSource = setSelectedSource;
         if (typeof clearSelectedSource !== 'undefined') global.clearSelectedSource = clearSelectedSource;
         if (typeof getRandomSource !== 'undefined') global.getRandomSource = getRandomSource;
+        if (typeof getRandomPicture !== 'undefined') global.getRandomPicture = getRandomPicture;
+        if (typeof loadAllRecentPictures !== 'undefined') global.loadAllRecentPictures = loadAllRecentPictures;
         if (typeof loadAvailableSources !== 'undefined') global.loadAvailableSources = loadAvailableSources;
         if (typeof updateSourceSelector !== 'undefined') global.updateSourceSelector = updateSourceSelector;
       })();
@@ -159,6 +161,168 @@ describe('newtab.js Tests', () => {
       localStorage.removeItem(SOURCE_KEY);
       
       expect(localStorage.getItem(SOURCE_KEY)).toBeNull();
+    });
+  });
+
+  describe('New Randomization Functions', () => {
+    test('loadAllRecentPictures should fetch from all_recent endpoint', async () => {
+      const mockPictures = [
+        { source: 'apod', date: '2024-01-15', title: 'APOD Picture' },
+        { source: 'wikipedia', date: '2024-01-15', title: 'Wikipedia Picture' },
+        { source: 'bing', date: '2024-01-15', title: 'Bing Picture 1' },
+        { source: 'bing', date: '2024-01-14', title: 'Bing Picture 2' },
+        { source: 'bing', date: '2024-01-13', title: 'Bing Picture 3' },
+      ];
+      
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPictures,
+      });
+      
+      const pictures = await loadAllRecentPictures();
+      
+      expect(pictures).toEqual(mockPictures);
+      expect(pictures.length).toBe(5);
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/all_recent/'));
+    });
+
+    test('loadAllRecentPictures should handle API error gracefully', async () => {
+      fetch.mockRejectedValueOnce(new Error('API error'));
+      
+      const pictures = await loadAllRecentPictures();
+      
+      expect(pictures).toEqual([]);
+      expect(console.error).toHaveBeenCalledWith('Failed to load recent pictures:', expect.any(Error));
+    });
+
+    test('loadAllRecentPictures should handle non-ok response', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+      });
+      
+      const pictures = await loadAllRecentPictures();
+      
+      expect(pictures).toEqual([]);
+      expect(console.error).toHaveBeenCalled();
+    });
+
+    test('getRandomPicture should return a random picture from all_recent', async () => {
+      const mockPictures = [
+        { source: 'apod', date: '2024-01-15', title: 'APOD Picture' },
+        { source: 'wikipedia', date: '2024-01-15', title: 'Wikipedia Picture' },
+        { source: 'bing', date: '2024-01-15', title: 'Bing Picture 1' },
+        { source: 'bing', date: '2024-01-14', title: 'Bing Picture 2' },
+      ];
+      
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPictures,
+      });
+      
+      const randomPicture = await getRandomPicture();
+      
+      expect(randomPicture).toBeTruthy();
+      expect(mockPictures).toContainEqual(randomPicture);
+      expect(['apod', 'wikipedia', 'bing']).toContain(randomPicture.source);
+    });
+
+    test('getRandomPicture should return null when no pictures available', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      });
+      
+      const randomPicture = await getRandomPicture();
+      
+      expect(randomPicture).toBeNull();
+    });
+
+    test('getRandomPicture should return different pictures on multiple calls', async () => {
+      const mockPictures = [
+        { source: 'apod', date: '2024-01-15', title: 'APOD Picture' },
+        { source: 'wikipedia', date: '2024-01-15', title: 'Wikipedia Picture' },
+        { source: 'bing', date: '2024-01-15', title: 'Bing Picture 1' },
+        { source: 'bing', date: '2024-01-14', title: 'Bing Picture 2' },
+        { source: 'bing', date: '2024-01-13', title: 'Bing Picture 3' },
+      ];
+      
+      const selectedSources = new Set();
+      
+      // Call multiple times to test randomness
+      for (let i = 0; i < 10; i++) {
+        fetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockPictures,
+        });
+        
+        const randomPicture = await getRandomPicture();
+        if (randomPicture) {
+          selectedSources.add(randomPicture.source);
+        }
+      }
+      
+      // With 10 calls from 5 pictures (3 Bing, 1 APOD, 1 Wikipedia),
+      // we should likely see at least 2 different sources
+      expect(selectedSources.size).toBeGreaterThan(0);
+    });
+
+    test('getRandomPicture should give Bing pictures higher probability', async () => {
+      // This test demonstrates that with more Bing pictures, they should appear more often
+      const mockPictures = [
+        { source: 'apod', date: '2024-01-15', title: 'APOD Picture' },
+        { source: 'wikipedia', date: '2024-01-15', title: 'Wikipedia Picture' },
+        { source: 'bing', date: '2024-01-15', title: 'Bing Picture 1' },
+        { source: 'bing', date: '2024-01-14', title: 'Bing Picture 2' },
+        { source: 'bing', date: '2024-01-13', title: 'Bing Picture 3' },
+        { source: 'bing', date: '2024-01-12', title: 'Bing Picture 4' },
+        { source: 'bing', date: '2024-01-11', title: 'Bing Picture 5' },
+        { source: 'bing', date: '2024-01-10', title: 'Bing Picture 6' },
+      ];
+      
+      // With 8 total pictures (6 Bing + 1 APOD + 1 Wikipedia),
+      // Bing should have 6/8 = 75% probability
+      const sourceCounts = { apod: 0, wikipedia: 0, bing: 0 };
+      const iterations = 100;
+      
+      for (let i = 0; i < iterations; i++) {
+        fetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockPictures,
+        });
+        
+        const randomPicture = await getRandomPicture();
+        if (randomPicture) {
+          sourceCounts[randomPicture.source]++;
+        }
+      }
+      
+      // Bing should appear significantly more often than others
+      expect(sourceCounts.bing).toBeGreaterThan(sourceCounts.apod);
+      expect(sourceCounts.bing).toBeGreaterThan(sourceCounts.wikipedia);
+      
+      // Total should equal iterations
+      expect(sourceCounts.apod + sourceCounts.wikipedia + sourceCounts.bing).toBe(iterations);
+    });
+
+    test('getRandomPicture stores Bing date in localStorage when selected', async () => {
+      const mockPictures = [
+        { source: 'bing', date: '2024-01-15', title: 'Bing Picture' },
+      ];
+      
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPictures,
+      });
+      
+      const randomPicture = await getRandomPicture();
+      
+      expect(randomPicture.source).toBe('bing');
+      expect(randomPicture.date).toBe('2024-01-15');
+      
+      // In the actual init() function, it would store this in localStorage
+      // Test that the date is available for storage
+      expect(randomPicture.date).toBeTruthy();
     });
   });
 

@@ -283,4 +283,134 @@ class PictureOfTheDayViewSetTest(TestCase):
         # Check that both have required fields
         self.assertIn('title', list_response.data['results'][0])
         self.assertIn('title', detail_response.data)
+    
+    def test_all_recent_endpoint(self):
+        """Test all_recent endpoint returns pictures from all enabled sources"""
+        url = '/api/pictures/all_recent/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+        
+        # Should return at least 2 pictures (today's APOD and Wikipedia)
+        # Bing might have more
+        self.assertGreaterEqual(len(response.data), 2)
+        
+        # Check that we have pictures from different sources
+        sources = [pic['source'] for pic in response.data]
+        self.assertIn('apod', sources)
+        self.assertIn('wikipedia', sources)
+    
+    def test_all_recent_endpoint_with_multiple_bing_pictures(self):
+        """Test all_recent endpoint includes multiple recent Bing pictures"""
+        # Create multiple Bing pictures
+        for i in range(7):
+            PictureOfTheDay.objects.create(
+                source=PictureSource.BING,
+                date=date.today() - timedelta(days=i+2),
+                title=f'Bing Picture {i}',
+                original_explanation=f'Bing explanation {i}',
+                image_url=f'https://example.com/bing{i}.jpg',
+                media_type='image'
+            )
+        
+        url = '/api/pictures/all_recent/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Count Bing pictures in response
+        bing_pictures = [pic for pic in response.data if pic['source'] == 'bing']
+        
+        # Should have at most 8 Bing pictures (as configured)
+        self.assertLessEqual(len(bing_pictures), 8)
+        # Should have more than 1 Bing picture
+        self.assertGreater(len(bing_pictures), 1)
+    
+    def test_all_recent_endpoint_with_disabled_source(self):
+        """Test all_recent endpoint excludes disabled sources"""
+        # Disable Wikipedia source
+        wiki_config = SourceConfiguration.objects.get(source=PictureSource.WIKIPEDIA)
+        wiki_config.is_enabled = False
+        wiki_config.save()
+        
+        url = '/api/pictures/all_recent/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Wikipedia pictures should not be included
+        sources = [pic['source'] for pic in response.data]
+        self.assertNotIn('wikipedia', sources)
+        self.assertIn('apod', sources)
+    
+    def test_all_recent_endpoint_with_all_sources_disabled(self):
+        """Test all_recent endpoint when all sources are disabled"""
+        # Disable all sources
+        SourceConfiguration.objects.all().update(is_enabled=False)
+        
+        url = '/api/pictures/all_recent/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('No picture sources', response.data['error'])
+    
+    def test_all_recent_endpoint_falls_back_to_yesterday(self):
+        """Test all_recent endpoint falls back to yesterday for sources without today's picture"""
+        # Delete today's APOD picture
+        self.apod_picture.delete()
+        
+        # Create yesterday's APOD picture
+        yesterday = timezone.now().date() - timedelta(days=1)
+        yesterday_apod = PictureOfTheDay.objects.create(
+            source=PictureSource.APOD,
+            date=yesterday,
+            title='Yesterday APOD',
+            original_explanation='Yesterday APOD explanation',
+            image_url='https://example.com/yesterday_apod.jpg',
+            media_type='image'
+        )
+        
+        url = '/api/pictures/all_recent/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Should still have APOD from yesterday
+        apod_pictures = [pic for pic in response.data if pic['source'] == 'apod']
+        self.assertEqual(len(apod_pictures), 1)
+        self.assertEqual(apod_pictures[0]['title'], 'Yesterday APOD')
+    
+    def test_all_recent_endpoint_picture_distribution(self):
+        """Test that all_recent balances pictures across sources"""
+        # Create 7 more Bing pictures (total 8 with existing one)
+        for i in range(7):
+            PictureOfTheDay.objects.create(
+                source=PictureSource.BING,
+                date=date.today() - timedelta(days=i+2),
+                title=f'Bing {i}',
+                original_explanation=f'Bing explanation {i}',
+                image_url=f'https://example.com/bing{i}.jpg',
+                media_type='image'
+            )
+        
+        url = '/api/pictures/all_recent/'
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Count pictures by source
+        source_counts = {}
+        for pic in response.data:
+            source = pic['source']
+            source_counts[source] = source_counts.get(source, 0) + 1
+        
+        # Bing should have more pictures (around 8)
+        # APOD and Wikipedia should have 1 each
+        self.assertGreaterEqual(source_counts.get('bing', 0), 1)
+        self.assertEqual(source_counts.get('apod', 0), 1)
+        self.assertEqual(source_counts.get('wikipedia', 0), 1)
+        
+        # Total should be around 10 pictures (1 APOD + 1 Wikipedia + 8 Bing)
+        self.assertGreaterEqual(len(response.data), 8)
 

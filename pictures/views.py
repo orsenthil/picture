@@ -188,6 +188,53 @@ class PictureOfTheDayViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(sources)
     
+    @action(detail=False, methods=['get'])
+    def all_recent(self, request):
+        """Get all recent pictures from all enabled sources for random selection
+        
+        Returns a pool of pictures that gives each individual picture equal probability:
+        - For sources like Wikipedia and APOD: returns today's (or yesterday's) picture
+        - For Bing: returns multiple recent pictures (last 8 days) to balance the pool
+        """
+        enabled_sources = self._get_enabled_sources()
+        
+        if not enabled_sources:
+            return Response(
+                {'error': 'No picture sources are currently enabled'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        today = timezone.now().date()
+        pictures = []
+        
+        # Get today's (or yesterday's) picture for non-Bing enabled sources
+        for source in enabled_sources:
+            if source == 'bing':
+                continue  # Handle Bing separately to get multiple pictures
+            
+            try:
+                picture = PictureOfTheDay.objects.get(source=source, date=today)
+                pictures.append(picture)
+            except PictureOfTheDay.DoesNotExist:
+                # Try yesterday if today's not available
+                yesterday = today - timedelta(days=1)
+                try:
+                    picture = PictureOfTheDay.objects.get(source=source, date=yesterday)
+                    pictures.append(picture)
+                except PictureOfTheDay.DoesNotExist:
+                    pass
+        
+        # For Bing, include recent historical pictures (last 8 days) to balance the pool
+        if 'bing' in enabled_sources:
+            recent_bing = PictureOfTheDay.objects.filter(
+                source='bing'
+            ).order_by('-date')[:8]  # Get 8 recent Bing pictures
+            
+            pictures.extend(recent_bing)
+        
+        serializer = PictureOfTheDaySerializer(pictures, many=True)
+        return Response(serializer.data)
+    
     @action(detail=False, methods=['get'], url_path='list/(?P<source>[^/.]+)')
     def list_by_source(self, request, source=None):
         """Get all available pictures for a specific source, ordered by date (newest first)"""
