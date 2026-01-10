@@ -7,56 +7,8 @@ NASA APOD, Wikipedia POD, and Bing POD on every new tab, with AI-enhanced
 descriptions featuring simplified explanations and interactive Wikipedia links.
 
 
-**Development and Testing**
+<iframe width="560" height="315" src="https://www.youtube.com/embed/6l7RlQi3rDg?si=jMdsSTfMxFOjz5Sa" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is a python django app. `backend` directory is django app, and `extension` provides the browser extension code.The project includes comprehensive tests for management commands. To run the tests:
-
-Make sure you have all dependencies installed:
-
-```bash
-pip install -r requirements.txt
-```
-
-Run all tests
-```bash
-python manage.py test
-```
-
-**frontend tests**
-
-```bash
-cd tests
-npm install
-npm test
-```
-
-
-**Local Testing**
-
-```bash
-# Add  NASA_API_KEY and OPENAI_API_KEY to your .env
-
-cp .env.example .env
-```
-
-```bash
-# Start the Django server
-python manage.py runserver
-```
-
-Visit `http://localhost:8000/`
-
-
-**Deployment**
-
-For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
-
-Quick deployment workflow:
-1. Deploy website/API to Kubernetes
-2. Test website and API endpoints
-3. Package browser extension
-4. Test browser extension
-5. Publish to extension stores
 
 **Credits**
 
@@ -66,4 +18,4 @@ Quick deployment workflow:
 
 **Copyright**
 
-Senthil Kumaran <orsenthil@gmail.com>
+2026 Senthil Kumaran <orsenthil@gmail.com>

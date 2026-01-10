@@ -19,7 +19,7 @@
 
 - [x] Add a favicon for the site.
 - [x] Visit and Test on different monitor sizes and operating systems.
-- [ ] Update the settings to give link to the extensions.
+- [x] Update the settings to give link to the extensions.
 
 ## Code Quality
 
@@ -40,4 +40,4 @@
 - [x] Add Analytics.
 - [ ] Share with Public - widely
 - [ ] Market it with Stories.
-- [ ] Create a video explaining the features.
+- [x] Create a video explaining the features.
