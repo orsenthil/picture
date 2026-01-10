@@ -38,6 +38,6 @@
 
 - [x] Publish it Github as Open Source.
 - [x] Add Analytics.
-- [ ] Share with Public - widely
+- [x] Share with Public - widely
 - [x] Market it with Stories.
 - [x] Create a video explaining the features.
