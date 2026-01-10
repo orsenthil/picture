@@ -7,7 +7,9 @@ NASA APOD, Wikipedia POD, and Bing POD on every new tab, with AI-enhanced
 descriptions featuring simplified explanations and interactive Wikipedia links.
 
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/6l7RlQi3rDg?si=jMdsSTfMxFOjz5Sa" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+### Video 
+
+https://www.youtube.com/watch?v=6l7RlQi3rDg
 
 
 **Credits**
