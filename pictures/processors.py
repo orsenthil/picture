@@ -3,11 +3,12 @@ Processing utilities for Picture of the Day
 """
 import re
 import os
+import time
 import requests
 from io import BytesIO
 from PIL import Image
 from django.conf import settings
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 
 
 class ImageProcessor:
@@ -167,15 +168,25 @@ Original description:
 
 Return ONLY the phrase:"""
 
-        response = self.client.chat.completions.create(
-            model="thinkingmachines/inkling:free",
-            messages=[
-                {"role": "system", "content": "You are an expert at distilling text into short, high-quality descriptive phrases."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=40
-        )
+        max_attempts = 4
+        delay = 5
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = self.client.chat.completions.create(
+                    model="openrouter/free",
+                    messages=[
+                        {"role": "system", "content": "You are an expert at distilling text into short, high-quality descriptive phrases."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=40
+                )
+                break
+            except RateLimitError:
+                if attempt == max_attempts:
+                    raise
+                time.sleep(delay)
+                delay *= 2
 
         result = response.choices[0].message.content.strip()
 
