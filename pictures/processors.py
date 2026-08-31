@@ -124,245 +124,77 @@ class ImageProcessor:
 
 
 class TextProcessor:
-    """Handles text processing with OpenAI"""
-    
+    """Handles text processing with OpenRouter"""
+
     def __init__(self, api_key=None):
         self.client = OpenAI(api_key=api_key or settings.OPENROUTER_API_KEY,
                              base_url='https://openrouter.ai/api/v1')
-    
+
     def process_picture_description(self, original_text, context="general"):
         """
-        Process picture description: create a highly representative summary (max 300 words)
-        with exactly 3 high-value Wikipedia links.
-        
-        This is the unified processing function used for all picture sources.
-        It creates a concise, informative summary and links only the 3 most important terms.
-        
+        Process a picture description into a short, high-quality phrase
+        (maximum 10 words) describing what the picture shows.
+
+        This is the single unified processing function used for all picture
+        sources. It is meant for dashboard display, so it deliberately avoids
+        Wikipedia links or lengthy summaries - just a punchy phrase.
+
         Args:
             original_text: Original description text from the picture source
             context: Context for processing (e.g., 'astronomy', 'general')
-        
-        Returns:
-            str: Processed text with summary (max 300 words) and exactly 3 Wikipedia links
-        """
-        # Context-specific guidance for selecting high-value terms
-        context_guidance = {
-            'astronomy': """Focus on the most significant astronomical concepts, objects, or phenomena mentioned. 
-Prioritize: major celestial objects, important scientific discoveries, key astronomical phenomena, or notable space missions.""",
-            'general': """Focus on the most significant people, places, events, or concepts mentioned.
-Prioritize: notable historical figures, important locations, significant events, or key scientific/cultural concepts."""
-        }
-        
-        guidance = context_guidance.get(context, context_guidance['general'])
-        
-        prompt = f"""Create a highly representative summary of the following picture description. The summary should:
-1. Be concise and informative (maximum 300 words)
-2. Capture the essential information and key points about the picture
-3. Be accessible to a general audience while maintaining accuracy
-4. Include exactly 3 high-value Wikipedia links to the most important terms/concepts
 
-Select the 3 most important terms/concepts that would benefit readers most from Wikipedia links.
-These should be the highest-value terms that add significant context or understanding.
+        Returns:
+            str: A phrase describing the picture, maximum 10 words
+        """
+        context_guidance = {
+            'astronomy': "Focus on the most striking astronomical object or phenomenon shown.",
+            'general': "Focus on the most striking subject or scene shown.",
+        }
+        guidance = context_guidance.get(context, context_guidance['general'])
+
+        prompt = f"""Read the following picture description and write a single high-quality phrase, maximum 10 words, that describes what the picture shows.
 
 {guidance}
 
-Format the Wikipedia links as HTML anchor tags:
-<a href="https://en.wikipedia.org/wiki/Article_Name" target="_blank">term</a>
+Rules:
+- Maximum 10 words
+- No links, no citations, no Wikipedia references
+- No trailing period
+- Plain text only, no preamble or explanation
 
 Original description:
 {original_text}
 
-Return ONLY the processed summary text with exactly 3 Wikipedia links embedded, no preamble or explanation:"""
+Return ONLY the phrase:"""
 
         response = self.client.chat.completions.create(
             model="thinkingmachines/inkling:free",
             messages=[
-                {"role": "system", "content": "You are an expert at creating concise, informative summaries and identifying the most valuable terms for Wikipedia linking."},
+                {"role": "system", "content": "You are an expert at distilling text into short, high-quality descriptive phrases."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=800  # Enough for ~300 words plus HTML links
+            max_tokens=40
         )
-        
+
         result = response.choices[0].message.content.strip()
-        
-        # Clean up any markdown code blocks if present
-        result = re.sub(r'^```html?\n', '', result)
+
+        # Clean up any markdown code blocks or surrounding quotes if present
+        result = re.sub(r'^```\w*\n', '', result)
         result = re.sub(r'\n```$', '', result)
-        
-        # Validate and fix if needed
-        result = self._validate_and_fix_processed_text(result)
-        
-        return result
-    
-    def _validate_and_fix_processed_text(self, text):
-        """
-        Validate processed text meets requirements:
-        - Maximum 300 words
-        - Exactly 3 Wikipedia links
-        
-        If not, attempt to fix by truncating or adjusting links.
-        """
+        result = result.strip().strip('"').strip("'").strip()
+
+        return self._enforce_word_limit(result, max_words=10)
+
+    @staticmethod
+    def _enforce_word_limit(text, max_words=10):
+        """Truncate text to at most max_words words."""
         if not text:
             return text
-        
-        # Count Wikipedia links first (before any truncation)
-        link_pattern = r'<a\s+href=["\']https?://en\.wikipedia\.org/wiki/[^"\']+["\'][^>]*>.*?</a>'
-        all_links = re.findall(link_pattern, text, re.IGNORECASE | re.DOTALL)
-        link_count = len(all_links)
-        
-        # Count words (excluding HTML tags for accurate count)
-        text_for_word_count = re.sub(r'<[^>]+>', '', text)  # Remove HTML tags for word counting
-        words = text_for_word_count.split()
-        word_count = len(words)
-        
-        # If word count exceeds 300, truncate carefully to preserve links
-        if word_count > 300:
-            # Find positions of all links
-            link_matches = list(re.finditer(link_pattern, text, re.IGNORECASE | re.DOTALL))
-            
-            # Try to truncate while preserving at least 3 links
-            if link_count >= 3:
-                # Find where the 3rd link ends
-                if len(link_matches) >= 3:
-                    third_link_end = link_matches[2].end()
-                    # Truncate to preserve first 3 links
-                    truncated = text[:third_link_end]
-                    # Count words in truncated version
-                    truncated_text_for_count = re.sub(r'<[^>]+>', '', truncated)
-                    truncated_word_count = len(truncated_text_for_count.split())
-                    
-                    # If still over 300 words, truncate by words but try to preserve links
-                    if truncated_word_count > 300:
-                        # Truncate by words, but keep complete links
-                        words_list = text_for_word_count.split()[:300]
-                        # Find the position of the 300th word in original text
-                        word_pos = len(' '.join(words_list))
-                        # Find the nearest complete link before this position
-                        for link_match in reversed(link_matches[:3]):
-                            if link_match.end() <= len(text[:word_pos + 100]):  # Add buffer
-                                text = text[:link_match.end()]
-                                break
-                    else:
-                        text = truncated
-                else:
-                    # Fallback: truncate by words
-                    words_list = text_for_word_count.split()[:300]
-                    text = ' '.join(words_list)
-            else:
-                # Not enough links, just truncate by words
-                words_list = text_for_word_count.split()[:300]
-                text = ' '.join(words_list)
-            
-            # Re-count after truncation
-            links = re.findall(link_pattern, text, re.IGNORECASE | re.DOTALL)
-            link_count = len(links)
-        
-        # If link count is not 3, try to fix
-        if link_count != 3:
-            if link_count > 3:
-                # Remove excess links, keeping first 3
-                link_matches = list(re.finditer(link_pattern, text, re.IGNORECASE | re.DOTALL))
-                if len(link_matches) > 3:
-                    # Keep text up to end of 3rd link
-                    text = text[:link_matches[2].end()]
-                    # Re-count to verify
-                    links = re.findall(link_pattern, text, re.IGNORECASE | re.DOTALL)
-                    link_count = len(links)
-            # If link_count < 3, we can't automatically add links - return as is
-            # The prompt should have ensured 3 links, but we handle edge cases
-        
-        return text
-    
-    # Legacy methods kept for backward compatibility but deprecated
-    def simplify_text(self, text, context="general"):
-        """
-        DEPRECATED: Use process_picture_description instead.
-        Simplify the explanation text
-        """
-        prompt = f"""Please simplify the following explanation to make it more accessible to a general audience. 
-Keep it informative but reduce technical jargon. Maintain the key facts and interesting details.
-Keep the length similar to the original.
 
-Original text:
-{text}
+        words = text.split()
+        if len(words) > max_words:
+            text = ' '.join(words[:max_words])
 
-Simplified version:"""
-
-        response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are an expert at simplifying scientific text while maintaining accuracy."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=1000
-        )
-        
-        return response.choices[0].message.content.strip()
-    
-    def add_wikipedia_links(self, text, context="general"):
-        """
-        DEPRECATED: Use process_picture_description instead.
-        Add Wikipedia links to important concepts
-        """
-        # Context-specific focus areas
-        focus_areas = {
-            'astronomy': [
-                '- Celestial objects (galaxies, nebulae, stars, planets, etc.)',
-                '- Astronomical phenomena (eclipses, supernovae, etc.)',
-                '- Scientific concepts (spectroscopy, redshift, etc.)',
-                '- Space missions and telescopes'
-            ],
-            'general': [
-                '- Important people, places, and events',
-                '- Scientific concepts and terms',
-                '- Historical events and figures',
-                '- Cultural and artistic concepts'
-            ]
-        }
-        
-        focus_list = focus_areas.get(context, focus_areas['general'])
-        focus_text = '\n'.join(focus_list)
-        
-        prompt = f"""Please identify important concepts, terms, people, places, and notable phenomena in the following text and add Wikipedia links to them.
-
-Return the text with HTML anchor tags linking to relevant Wikipedia articles.
-Format: <a href="https://en.wikipedia.org/wiki/Article_Name" target="_blank">term</a>
-
-Only link the FIRST occurrence of each term. Don't over-link common words.
-Focus on:
-{focus_text}
-
-Text:
-{text}
-
-Return ONLY the text with links added, no preamble or explanation:"""
-
-        response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are an expert at identifying important concepts and linking them to Wikipedia."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-            max_tokens=1500
-        )
-        
-        result = response.choices[0].message.content.strip()
-        
-        # Clean up any markdown code blocks if present
-        result = re.sub(r'^```html?\n', '', result)
-        result = re.sub(r'\n```$', '', result)
-        
-        return result
-    
-    def process_text(self, text, context="general"):
-        """
-        DEPRECATED: Use process_picture_description instead.
-        Process text: simplify and add Wikipedia links
-        """
-        simplified = self.simplify_text(text, context)
-        processed = self.add_wikipedia_links(simplified, context)
-        return simplified, processed
+        return text.rstrip('.')
 

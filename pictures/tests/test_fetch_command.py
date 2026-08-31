@@ -124,7 +124,7 @@ class FetchPictureCommandTest(TestCase):
         # Mock text processor to prevent actual API calls
         mock_txt_processor_instance = MagicMock()
         mock_text_processor.return_value = mock_txt_processor_instance
-        mock_txt_processor_instance.process_picture_description.return_value = 'Processed summary with 3 Wikipedia links'
+        mock_txt_processor_instance.process_picture_description.return_value = 'A stunning nebula glowing in deep space'
         
         # Run command with --force
         out = StringIO()

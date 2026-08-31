@@ -77,6 +77,11 @@ spec:
             secretKeyRef:
               name: pictureoftheday-secrets
               key: OPENAI_API_KEY
+        - name: OPENROUTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: pictureoftheday-secrets
+              key: OPENROUTER_API_KEY
         - name: TIME_ZONE
           valueFrom:
             configMapKeyRef:

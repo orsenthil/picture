@@ -233,8 +233,8 @@ class Command(BaseCommand):
 
     def process_text(self, picture, source):
         """
-        Process picture explanation with OpenAI using unified function.
-        Creates a 300-word summary with exactly 3 Wikipedia links.
+        Process picture explanation with OpenRouter using the unified function.
+        Creates a short, high-quality phrase (max 10 words) describing the picture.
         Used for all picture sources.
         """
         try:
@@ -249,19 +249,19 @@ class Command(BaseCommand):
             context = context_map.get(source, 'general')
             
             # Use unified processing function for all sources
-            # This creates a 300-word summary with exactly 3 Wikipedia links
+            # This creates a short, high-quality phrase (max 10 words)
             processed_text = text_processor.process_picture_description(
-                picture.original_explanation, 
+                picture.original_explanation,
                 context
             )
-            
+
             # Sanitize processed text to remove HTML entities
             picture.processed_explanation = sanitize_html_entities(processed_text)
             picture.is_processed = True
             picture.processing_error = None
             picture.save()
-            
-            self.stdout.write('Text processed: 300-word summary with 3 Wikipedia links ✓')
+
+            self.stdout.write(f'Text processed: "{processed_text}" ✓')
             
         except Exception as e:
             picture.processing_error = str(e)

@@ -108,3 +108,4 @@ REST_FRAMEWORK = {
 
 NASA_API_KEY = config('NASA_API_KEY', default='DEMO_KEY')
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENROUTER_API_KEY = config('OPENROUTER_API_KEY', default='')
