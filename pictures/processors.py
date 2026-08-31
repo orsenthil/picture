@@ -127,7 +127,8 @@ class TextProcessor:
     """Handles text processing with OpenAI"""
     
     def __init__(self, api_key=None):
-        self.client = OpenAI(api_key=api_key or settings.OPENAI_API_KEY)
+        self.client = OpenAI(api_key=api_key or settings.OPENROUTER_API_KEY,
+                             base_url='https://openrouter.ai/api/v1')
     
     def process_picture_description(self, original_text, context="general"):
         """
@@ -174,7 +175,7 @@ Original description:
 Return ONLY the processed summary text with exactly 3 Wikipedia links embedded, no preamble or explanation:"""
 
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="thinkingmachines/inkling:free",
             messages=[
                 {"role": "system", "content": "You are an expert at creating concise, informative summaries and identifying the most valuable terms for Wikipedia linking."},
                 {"role": "user", "content": prompt}
