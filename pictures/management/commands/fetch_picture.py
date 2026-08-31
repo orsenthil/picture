@@ -66,27 +66,41 @@ class Command(BaseCommand):
                 
                 self.stdout.write(f'Found {len(all_pictures)} pictures')
                 
+                failures = 0
                 for picture_data in all_pictures:
                     picture_date = datetime.strptime(picture_data['date'], '%Y-%m-%d').date()
                     self.stdout.write(f'Processing {source.upper()} for {picture_date}...')
-                    
-                    picture, created = self.save_picture(source, picture_data, force)
-                    
-                    if created:
-                        self.stdout.write(self.style.SUCCESS(f'Created: {picture.title}'))
-                    else:
-                        self.stdout.write(self.style.WARNING(f'Exists: {picture.title}'))
-                    
-                    if picture.media_type == 'image':
-                        self.get_image_metadata(picture)
-                    
-                    if download_image and picture.media_type == 'image':
-                        self.download_and_store_image(picture)
-                    
-                    if process_text and (not picture.is_processed or force):
-                        self.process_text(picture, source)
-                
-                self.stdout.write(self.style.SUCCESS(f'Successfully processed {len(all_pictures)} pictures!'))
+
+                    try:
+                        picture, created = self.save_picture(source, picture_data, force)
+
+                        if created:
+                            self.stdout.write(self.style.SUCCESS(f'Created: {picture.title}'))
+                        else:
+                            self.stdout.write(self.style.WARNING(f'Exists: {picture.title}'))
+
+                        if picture.media_type == 'image':
+                            self.get_image_metadata(picture)
+
+                        if download_image and picture.media_type == 'image':
+                            self.download_and_store_image(picture)
+
+                        if process_text and (not picture.is_processed or force):
+                            self.process_text(picture, source)
+                    except Exception as e:
+                        failures += 1
+                        self.stdout.write(self.style.ERROR(
+                            f'Error processing {picture_date}: {str(e)}'
+                        ))
+                        continue
+
+                succeeded = len(all_pictures) - failures
+                if failures:
+                    self.stdout.write(self.style.WARNING(
+                        f'Processed {succeeded}/{len(all_pictures)} pictures ({failures} failed)'
+                    ))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Successfully processed {len(all_pictures)} pictures!'))
                 return
             
             if target_date:

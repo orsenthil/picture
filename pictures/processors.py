@@ -170,6 +170,7 @@ Return ONLY the phrase:"""
 
         max_attempts = 4
         delay = 5
+        result = None
         for attempt in range(1, max_attempts + 1):
             try:
                 response = self.client.chat.completions.create(
@@ -181,21 +182,55 @@ Return ONLY the phrase:"""
                     temperature=0.7,
                     max_tokens=40
                 )
-                break
+                content = response.choices[0].message.content
+                candidate = self._clean_candidate(content) if content else None
+                if candidate and self._is_valid_caption(candidate):
+                    result = candidate
+                    break
             except RateLimitError:
-                if attempt == max_attempts:
-                    raise
-                time.sleep(delay)
-                delay *= 2
+                pass
 
-        result = response.choices[0].message.content.strip()
+            if attempt == max_attempts:
+                raise ValueError(
+                    f"OpenRouter returned no usable caption after {max_attempts} attempts "
+                    f"for description: {original_text[:80]!r}..."
+                )
+            time.sleep(delay)
+            delay *= 2
 
-        # Clean up any markdown code blocks or surrounding quotes if present
+        return self._enforce_word_limit(result, max_words=10)
+
+    @staticmethod
+    def _clean_candidate(content):
+        """Strip markdown code fences and surrounding quotes from a raw model response."""
+        result = content.strip()
         result = re.sub(r'^```\w*\n', '', result)
         result = re.sub(r'\n```$', '', result)
         result = result.strip().strip('"').strip("'").strip()
+        return result
 
-        return self._enforce_word_limit(result, max_words=10)
+    # Free-tier auto-routed models occasionally leak chain-of-thought
+    # reasoning into the regular content field instead of a caption.
+    _REASONING_LEAK_PATTERN = re.compile(
+        r'^(we need|here\'?s|let\'?s|let me|i need|the user|first,|step \d|okay|sure|'
+        r'analyz|input:|thinking process)',
+        re.IGNORECASE
+    )
+
+    @classmethod
+    def _is_valid_caption(cls, text):
+        """
+        Reject responses that look like leaked reasoning/instructions rather
+        than an actual descriptive caption.
+        """
+        if not text:
+            return False
+        if cls._REASONING_LEAK_PATTERN.match(text):
+            return False
+        # Numbered-list / markdown structure ("1. **Analyze...") is a reasoning artifact
+        if re.search(r'\d+\.\s*\*\*', text) or re.search(r'^\d+[.)]\s', text):
+            return False
+        return True
 
     @staticmethod
     def _enforce_word_limit(text, max_words=10):
