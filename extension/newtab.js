@@ -47,6 +47,10 @@ function getDimensionsOverlayVisible() {
     return stored === null ? false : stored === 'true'; // Default to hidden
 }
 
+function getRandomOnNewTab() {
+    return localStorage.getItem(RANDOM_ON_NEW_TAB_KEY) !== 'false';
+}
+
 function setDimensionsOverlayVisible(visible) {
     localStorage.setItem(DIMENSIONS_VISIBLE_KEY, visible.toString());
     if (dimensionsOverlay) {
@@ -66,8 +70,7 @@ function initSettings() {
         toggleDescription.checked = getInfoPanelVisible();
     }
     if (toggleRandom) {
-        const stored = localStorage.getItem(RANDOM_ON_NEW_TAB_KEY);
-        const randomEnabled = stored === null ? true : stored === 'true';
+        const randomEnabled = getRandomOnNewTab();
         toggleRandom.checked = randomEnabled;
         
         if (sourceSelect) {
@@ -87,7 +90,7 @@ function initSettings() {
 initSettings();
 
 sourceSelect.addEventListener('change', async (e) => {
-    const randomEnabled = localStorage.getItem(RANDOM_ON_NEW_TAB_KEY) === 'true';
+    const randomEnabled = getRandomOnNewTab();
     if (randomEnabled) {
         const randomSource = getRandomSource();
         if (randomSource) {
@@ -135,15 +138,14 @@ if (bingPictureSelect) {
         const selectedDate = e.target.value;
         if (selectedDate) {
             localStorage.setItem(BING_PICTURE_KEY, selectedDate);
-            // Clear cache to force fetch of selected picture
-            localStorage.removeItem(CACHE_KEY);
-            localStorage.removeItem(CACHE_DATE_KEY);
-            // Show loading screen
-            loading.classList.remove('hidden');
-            loadingText.textContent = 'Loading Bing picture...';
-            // Reload picture
-            init();
+        } else {
+            localStorage.removeItem(BING_PICTURE_KEY);
         }
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.removeItem(CACHE_DATE_KEY);
+        loading.classList.remove('hidden');
+        loadingText.textContent = 'Loading Bing picture...';
+        init();
     });
 }
 
@@ -215,11 +217,6 @@ if (toggleRandom) {
         
         if (sourceSelect) {
             sourceSelect.disabled = randomEnabled;
-        }
-        
-        if (randomEnabled) {
-            clearSelectedSource();
-            localStorage.removeItem(BING_PICTURE_KEY);
         }
         
         init();
@@ -298,7 +295,7 @@ async function updateSourceSelector(forceRefresh = false) {
     
     if (!sourceSelect) return;
     
-    const currentValue = sourceSelect.value;
+    const currentValue = getSelectedSource() || sourceSelect.value;
     
     sourceSelect.innerHTML = '';
     
@@ -308,7 +305,7 @@ async function updateSourceSelector(forceRefresh = false) {
         return;
     }
     
-    sourceSelect.disabled = false;
+    sourceSelect.disabled = getRandomOnNewTab();
     
     sources.forEach(source => {
         if (source.enabled !== false) {
@@ -483,7 +480,11 @@ window.addEventListener('resize', () => {
     }, 250);
 });
 
-async function loadBingPictures(pickRandom = false) {
+function getSelectedBingDate() {
+    return localStorage.getItem(BING_PICTURE_KEY);
+}
+
+async function loadBingPictures() {
     if (!bingPictureSelect) return;
     
     try {
@@ -494,7 +495,7 @@ async function loadBingPictures(pickRandom = false) {
         
         const pictures = await response.json();
         
-        bingPictureSelect.innerHTML = '<option value="">Select a Bing picture...</option>';
+        bingPictureSelect.innerHTML = '<option value="">Latest picture (auto-update)</option>';
         
         pictures.forEach(picture => {
             const option = document.createElement('option');
@@ -503,16 +504,16 @@ async function loadBingPictures(pickRandom = false) {
             bingPictureSelect.appendChild(option);
         });
         
-        const storedDate = localStorage.getItem(BING_PICTURE_KEY);
-        if (pickRandom && pictures.length > 0) {
-            const randomIndex = Math.floor(Math.random() * pictures.length);
-            const randomDate = pictures[randomIndex].date;
-            bingPictureSelect.value = randomDate;
-        } else if (storedDate) {
+        const storedDate = getSelectedBingDate();
+        if (storedDate) {
+            // Keep a manual selection even if it is no longer in the recent list.
+            if (!pictures.some(picture => picture.date === storedDate)) {
+                const option = document.createElement('option');
+                option.value = storedDate;
+                option.textContent = storedDate;
+                bingPictureSelect.appendChild(option);
+            }
             bingPictureSelect.value = storedDate;
-        } else if (pictures.length > 0) {
-            bingPictureSelect.value = pictures[0].date;
-            localStorage.setItem(BING_PICTURE_KEY, pictures[0].date);
         }
     } catch (error) {
         console.error('Failed to load Bing pictures:', error);
@@ -544,14 +545,11 @@ async function fetchPicture(source = null) {
     
     let url;
     if (selectedSource === 'bing') {
-        let selectedDate = localStorage.getItem(BING_PICTURE_KEY);
-        if (!selectedDate && bingPictureSelect && bingPictureSelect.value) {
-            selectedDate = bingPictureSelect.value;
-        }
+        const selectedDate = getSelectedBingDate();
         if (selectedDate) {
             url = `${PICTURES_API_URL}/date/${selectedDate}/bing/`;
         } else {
-            url = `${PICTURES_API_URL}/today/${selectedSource}/`;
+            url = `${PICTURES_API_URL}/latest/bing/`;
         }
     } else {
         url = `${PICTURES_API_URL}/today/${selectedSource}/`;
@@ -617,12 +615,15 @@ function normalizePictureData(data, source) {
 
 function isCacheValid(source) {
     const cachedDate = localStorage.getItem(CACHE_DATE_KEY);
-    const cachedSource = localStorage.getItem(SOURCE_KEY);
+    const cached = localStorage.getItem(CACHE_KEY);
+    const cachedSource = cached ? JSON.parse(cached).source : null;
     const today = new Date().toDateString();
     return cachedDate === today && cachedSource === source;
 }
 
 function getCachedPicture(source) {
+    // Recheck the latest Bing picture on each new tab, including same-day updates.
+    if (source === 'bing' && !getSelectedBingDate()) return null;
     if (!isCacheValid(source)) {
         return null;
     }
@@ -634,6 +635,10 @@ function getCachedPicture(source) {
     
     // Sanitize cached data for backward compatibility with old cache entries
     const data = JSON.parse(cached);
+    if (source === 'bing') {
+        const selectedDate = getSelectedBingDate();
+        if (selectedDate && data.date !== selectedDate) return null;
+    }
     return {
         ...data,
         title: sanitizeHtmlEntities(data.title),
@@ -648,9 +653,6 @@ function getCachedPicture(source) {
 function cachePicture(data) {
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
     localStorage.setItem(CACHE_DATE_KEY, new Date().toDateString());
-    if (data.source) {
-        setSelectedSource(data.source);
-    }
 }
 
 function displayPicture(data) {
@@ -825,13 +827,13 @@ async function init() {
             return;
         }
         
-        const stored = localStorage.getItem(RANDOM_ON_NEW_TAB_KEY);
-        const randomEnabled = stored === null ? true : stored === 'true';
+        const randomEnabled = getRandomOnNewTab();
         let source;
+        let randomPicture;
         
         if (randomEnabled) {
-            // New approach: pick a random picture from all available pictures
-            const randomPicture = await getRandomPicture();
+            // Pick a random picture without changing the user's saved source or date.
+            randomPicture = await getRandomPicture();
             if (!randomPicture) {
                 showError('No pictures are currently available.');
                 return;
@@ -841,11 +843,6 @@ async function init() {
             source = randomPicture.source;
             if (sourceSelect) {
                 sourceSelect.value = source;
-            }
-            
-            // If it's a Bing picture with a specific date, store that date
-            if (source === 'bing' && randomPicture.date) {
-                localStorage.setItem(BING_PICTURE_KEY, randomPicture.date);
             }
         } else {
             source = getSelectedSource();
@@ -873,7 +870,9 @@ async function init() {
         if (bingPictureSelect) {
             if (source === 'bing') {
                 bingPictureSelect.classList.remove('hidden');
-                await loadBingPictures(randomEnabled);
+                await loadBingPictures();
+                bingPictureSelect.disabled = randomEnabled;
+                if (randomPicture) bingPictureSelect.value = randomPicture.date;
             } else {
                 bingPictureSelect.classList.add('hidden');
             }
@@ -891,7 +890,9 @@ async function init() {
         const sourceName = sourceNames[source] || 'Picture';
         loadingText.textContent = `Loading ${sourceName}...`;
         
-        let pictureData = getCachedPicture(source);
+        let pictureData = randomPicture
+            ? normalizePictureData(randomPicture, source)
+            : getCachedPicture(source);
         
         if (!pictureData) {
             pictureData = await fetchPicture(source);
